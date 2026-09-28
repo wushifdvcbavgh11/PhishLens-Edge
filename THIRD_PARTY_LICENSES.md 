@@ -1,0 +1,26 @@
+# Third-Party Licenses
+This document lists all third-party libraries used in PhishLens-Edge and their corresponding open-source licenses.
+
+## 1. Ultralytics YOLO
+- Repository: https://github.com/ultralytics/ultralytics
+- License: **GNU AGPL-3.0**
+> Note: AGPL-3.0 is a copyleft license. If this software is deployed over a network, the complete source code of the whole project shall be made publicly available. This project is built for academic competition use.
+
+## 2. FastAPI
+- Repository: https://github.com/tiangolo/fastapi
+- License: MIT
+
+## 3. Pillow (PIL)
+- Repository: https://github.com/python-pillow/Pillow
+- License: HPND (MIT-style permissive license)
+
+## 4. OpenCV
+- Repository: https://github.com/opencv/opencv
+- License: Apache-2.0
+
+## 5. Qwen2-VL
+- Repository: https://github.com/QwenLM/Qwen2-VL
+- License: Apache-2.0
+
+## 6. Other dependencies
+All other python packages follow their respective official open-source licenses.
