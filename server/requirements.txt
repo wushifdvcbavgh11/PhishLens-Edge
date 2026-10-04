@@ -1,0 +1,9 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+tldextract>=5.1
+PyYAML>=6.0
+
+# Vision stack (already installed in .venv during T2/T3):
+# torch==2.1.0+cpu, torchvision==0.16.0+cpu, detectron2==0.6 (MiroPsota wheel),
+# numpy==1.26.4, Pillow

@@ -1,0 +1,90 @@
+{
+  "alipay": {
+    "status": "keep",
+    "size": 2600
+  },
+  "wechat": {
+    "status": "fail",
+    "size": 0
+  },
+  "qq": {
+    "status": "fail",
+    "size": 16
+  },
+  "icbc": {
+    "status": "fail",
+    "size": 32
+  },
+  "ccb": {
+    "status": "fail",
+    "size": 0
+  },
+  "abchina": {
+    "status": "ok",
+    "size": 1630
+  },
+  "boc": {
+    "status": "fail",
+    "size": 16
+  },
+  "cmb": {
+    "status": "fail",
+    "size": 48
+  },
+  "bankcomm": {
+    "status": "fail",
+    "size": 0
+  },
+  "12306": {
+    "status": "fail",
+    "size": 0
+  },
+  "geeren": {
+    "status": "fail",
+    "size": 0
+  },
+  "gjzwfw": {
+    "status": "fail",
+    "size": 16
+  },
+  "chsi": {
+    "status": "fail",
+    "size": 57
+  },
+  "exmail": {
+    "status": "fail",
+    "size": 32
+  },
+  "qiye163": {
+    "status": "fail",
+    "size": 16
+  },
+  "alimail": {
+    "status": "fail",
+    "size": 16
+  },
+  "dingtalk": {
+    "status": "keep",
+    "size": 200
+  },
+  "feishu": {
+    "status": "fail",
+    "size": 0
+  },
+  "microsoft365": {
+    "status": "keep",
+    "size": 128
+  },
+  "taobao": {
+    "status": "ok",
+    "size": 64
+  },
+  "jd": {
+    "status": "fail",
+    "size": 0
+  },
+  "pinduoduo": {
+    "status": "fail",
+    "size": 48
+  }
+}

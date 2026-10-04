@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Third-party checkouts & wheels (download via scripts; see README)
+third_party/
+*.whl
+
+# Runtime artifacts
+*.log
+server/server.log
+
+# Test data & screenshots (not published; see THIRD_PARTY_LICENSES / privacy notes)
+testset/
+testset/**/*.png
+
+# Temp / OS
+.DS_Store
+Thumbs.db
+.tmp/
+# Build artifacts
+.dumate/

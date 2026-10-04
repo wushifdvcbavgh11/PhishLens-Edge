@@ -1,0 +1,244 @@
+[
+  {
+    "brand_id": "alipay",
+    "homepage": "https://www.alipay.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\alipay\\logo.png",
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\alipay\\logo.ico"
+    ],
+    "sources": [
+      "https://mdn.alipayobjects.com/rms/afts/file/A*7EyORZxdNDkAAAAAAAAAAAAAARQnAQ",
+      "https://img.alicdn.com/tfs/TB1qEwuzrj1gK0jSZFOXXc7GpXa-32-32.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "wechat",
+    "homepage": "https://weixin.qq.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\wechat\\logo.ico"
+    ],
+    "sources": [
+      "https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "qq",
+    "homepage": "https://im.qq.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\qq\\logo.ico"
+    ],
+    "sources": [
+      "https://im.qq.com/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "icbc",
+    "homepage": "https://www.icbc.com.cn/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\icbc\\logo.ico"
+    ],
+    "sources": [
+      "https://www.icbc.com.cn/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "ccb",
+    "homepage": "https://www.ccb.com/",
+    "downloaded": [],
+    "sources": [],
+    "error": "SSLError: HTTPSConnectionPool(host='www.ccb.com', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLError(1, '[SSL: UNSAFE_LEGACY_RENEGOTIATION_DISABLED] unsafe legacy renegotiation disabled (_ssl.c:1006)')))"
+  },
+  {
+    "brand_id": "abchina",
+    "homepage": "https://www.abchina.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\abchina\\logo.ico"
+    ],
+    "sources": [
+      "https://www.abchina.com/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "boc",
+    "homepage": "https://www.boc.cn/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\boc\\logo.ico"
+    ],
+    "sources": [
+      "https://www.boc.cn/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "cmb",
+    "homepage": "https://www.cmbchina.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\cmb\\logo.ico"
+    ],
+    "sources": [
+      "https://www.cmbchina.com/cmb.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "bankcomm",
+    "homepage": "https://www.bankcomm.com/",
+    "downloaded": [],
+    "sources": [],
+    "error": "SSLError: HTTPSConnectionPool(host='www.bankcomm.com', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLError(1, '[SSL: UNSAFE_LEGACY_RENEGOTIATION_DISABLED] unsafe legacy renegotiation disabled (_ssl.c:1006)')))"
+  },
+  {
+    "brand_id": "12306",
+    "homepage": "https://www.12306.cn/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\12306\\logo.ico"
+    ],
+    "sources": [
+      "https://www.12306.cn/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "geeren",
+    "homepage": "https://etax.chinatax.gov.cn/",
+    "downloaded": [],
+    "sources": [],
+    "error": "HTTPError: 404 Client Error: Not Found for url: https://etax.chinatax.gov.cn/"
+  },
+  {
+    "brand_id": "gjzwfw",
+    "homepage": "https://gjzwfw.www.gov.cn/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\gjzwfw\\logo.ico"
+    ],
+    "sources": [
+      "https://gjzwfw.www.gov.cn/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "chsi",
+    "homepage": "https://www.chsi.com.cn/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\chsi\\logo.ico",
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\chsi\\logo.png",
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\chsi\\logo.png",
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\chsi\\logo.png",
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\chsi\\logo.png"
+    ],
+    "sources": [
+      "https://t1.chei.com.cn/chsi/favicon.ico",
+      "https://t1.chei.com.cn/chsi/images/chsi-logo-iphone.png",
+      "https://t3.chei.com.cn/chsi/images/chsi-logo-pad.png",
+      "https://t3.chei.com.cn/chsi/images/chsi-logo-iphone2x.png",
+      "https://t1.chei.com.cn/chsi/images/chsi-logo-pad2x.png"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "exmail",
+    "homepage": "https://exmail.qq.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\exmail\\logo.ico"
+    ],
+    "sources": [
+      "https://exmail.qq.com/exmail_logo.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "qiye163",
+    "homepage": "https://qiye.163.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\qiye163\\logo.ico"
+    ],
+    "sources": [
+      "https://qiye.163.com/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "alimail",
+    "homepage": "https://alimail.alibaba.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\alimail\\logo.ico"
+    ],
+    "sources": [
+      "https://is.alicdn.com/simg/single/icon/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "dingtalk",
+    "homepage": "https://www.dingtalk.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\dingtalk\\logo.png",
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\dingtalk\\logo.png"
+    ],
+    "sources": [
+      "https://gw.alicdn.com/imgextra/i3/O1CN014ZbI6ZTEhdC0ttN2_!!6000000003783-2-tps-444-444.png",
+      "https://img.alicdn.com/imgextra/i3/O1CN017PqYP51OX3bSJGxQY_!!6000000001714-2-tps-200-200.png"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "feishu",
+    "homepage": "https://www.feishu.cn/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\feishu\\logo.png"
+    ],
+    "sources": [
+      "https://p1-hera.feishucdn.com/tos-cn-i-jbbdkfciu3/84a9f036fe2b44f99b899fff4beeb963~tplv-jbbdkfciu3-image:100:100.image"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "microsoft365",
+    "homepage": "https://www.microsoft365.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\microsoft365\\logo.ico"
+    ],
+    "sources": [
+      "https://res.cdn.office.net/officehub/images/content/images/unauth-copilotcom/favicon-copilot-brand-refresh-23392c1f66.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "taobao",
+    "homepage": "https://www.taobao.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\taobao\\logo.png"
+    ],
+    "sources": [
+      "https://img.alicdn.com/tps/i3/T1OjaVFl4dXXa.JOZB-114-114.png"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "jd",
+    "homepage": "https://www.jd.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\jd\\logo.ico"
+    ],
+    "sources": [
+      "https://storage.360buyimg.com/retail-mall/mall-common-component/favicon.ico"
+    ],
+    "error": null
+  },
+  {
+    "brand_id": "pinduoduo",
+    "homepage": "https://www.pinduoduo.com/",
+    "downloaded": [
+      "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\pinduoduo\\logo.png"
+    ],
+    "sources": [
+      "https://www.pinduoduo.com/favicon.png"
+    ],
+    "error": null
+  }
+]

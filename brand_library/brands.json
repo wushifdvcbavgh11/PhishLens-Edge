@@ -1,0 +1,276 @@
+[
+  {
+    "id": "alipay",
+    "name": "Alipay",
+    "name_cn": "支付宝",
+    "domains": [
+      "alipay.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\alipay\\logo_appstore.png"
+  },
+  {
+    "id": "wechat",
+    "name": "WeChat",
+    "name_cn": "微信",
+    "domains": [
+      "weixin.qq.com",
+      "wechat.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\wechat\\logo_appstore.png"
+  },
+  {
+    "id": "qq",
+    "name": "QQ",
+    "name_cn": "QQ",
+    "domains": [
+      "im.qq.com",
+      "qq.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\qq\\logo_appstore.png"
+  },
+  {
+    "id": "icbc",
+    "name": "ICBC",
+    "name_cn": "工商银行",
+    "domains": [
+      "icbc.com.cn"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\icbc\\logo_appstore.png"
+  },
+  {
+    "id": "ccb",
+    "name": "CCB",
+    "name_cn": "建设银行",
+    "domains": [
+      "ccb.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\ccb\\logo_appstore.png"
+  },
+  {
+    "id": "abchina",
+    "name": "ABC",
+    "name_cn": "农业银行",
+    "domains": [
+      "abchina.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\abchina\\logo_appstore.png"
+  },
+  {
+    "id": "boc",
+    "name": "BOC",
+    "name_cn": "中国银行",
+    "domains": [
+      "boc.cn"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\boc\\logo_appstore.png"
+  },
+  {
+    "id": "cmb",
+    "name": "CMB",
+    "name_cn": "招商银行",
+    "domains": [
+      "cmbchina.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\cmb\\logo_appstore.png"
+  },
+  {
+    "id": "bankcomm",
+    "name": "BOCOM",
+    "name_cn": "交通银行",
+    "domains": [
+      "bankcomm.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\bankcomm\\logo_appstore.png"
+  },
+  {
+    "id": "12306",
+    "name": "12306",
+    "name_cn": "铁路12306",
+    "domains": [
+      "12306.cn"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\12306\\logo_appstore.png"
+  },
+  {
+    "id": "geeren",
+    "name": "IIT",
+    "name_cn": "个人所得税",
+    "domains": [
+      "chinatax.gov.cn"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\geeren\\logo_appstore.png"
+  },
+  {
+    "id": "gjzwfw",
+    "name": "NGS",
+    "name_cn": "国家政务服务平台",
+    "domains": [
+      "gjzwfw.www.gov.cn"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\gjzwfw\\logo_appstore.png"
+  },
+  {
+    "id": "chsi",
+    "name": "CHSI",
+    "name_cn": "学信网",
+    "domains": [
+      "chsi.com.cn"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\chsi\\logo_appstore.png"
+  },
+  {
+    "id": "exmail",
+    "name": "Tencent Exmail",
+    "name_cn": "腾讯企业邮",
+    "domains": [
+      "exmail.qq.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\exmail\\logo_appstore.png"
+  },
+  {
+    "id": "qiye163",
+    "name": "NetEase Mail",
+    "name_cn": "网易企业邮",
+    "domains": [
+      "qiye.163.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\qiye163\\logo_appstore.png"
+  },
+  {
+    "id": "alimail",
+    "name": "Alibaba Mail",
+    "name_cn": "阿里邮箱",
+    "domains": [
+      "alimail.alibaba.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\alimail\\logo_appstore.png"
+  },
+  {
+    "id": "dingtalk",
+    "name": "DingTalk",
+    "name_cn": "钉钉",
+    "domains": [
+      "dingtalk.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\dingtalk\\logo_appstore.png"
+  },
+  {
+    "id": "feishu",
+    "name": "Feishu/Lark",
+    "name_cn": "飞书",
+    "domains": [
+      "feishu.cn",
+      "larksuite.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\feishu\\logo_appstore.png"
+  },
+  {
+    "id": "microsoft365",
+    "name": "Microsoft 365",
+    "name_cn": "微软365",
+    "domains": [
+      "microsoft.com",
+      "office.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\microsoft365\\logo_appstore.png"
+  },
+  {
+    "id": "taobao",
+    "name": "Taobao",
+    "name_cn": "淘宝",
+    "domains": [
+      "taobao.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\taobao\\logo_appstore.png"
+  },
+  {
+    "id": "jd",
+    "name": "JD.com",
+    "name_cn": "京东",
+    "domains": [
+      "jd.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\jd\\logo_appstore.png"
+  },
+  {
+    "id": "pinduoduo",
+    "name": "Pinduoduo",
+    "name_cn": "拼多多",
+    "domains": [
+      "pinduoduo.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\pinduoduo\\logo_appstore.png"
+  },
+  {
+    "id": "coinbase",
+    "name": "Coinbase",
+    "name_cn": "Coinbase",
+    "domains": [
+      "coinbase.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\coinbase\\logo_appstore.png"
+  },
+  {
+    "id": "metamask",
+    "name": "MetaMask",
+    "name_cn": "MetaMask",
+    "domains": [
+      "metamask.io"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\metamask\\logo_appstore.png"
+  },
+  {
+    "id": "ledger",
+    "name": "Ledger",
+    "name_cn": "Ledger",
+    "domains": [
+      "ledger.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\ledger\\logo_appstore.png"
+  },
+  {
+    "id": "instagram",
+    "name": "Instagram",
+    "name_cn": "Instagram",
+    "domains": [
+      "instagram.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\instagram\\logo_appstore.png"
+  },
+  {
+    "id": "xfinity",
+    "name": "Xfinity",
+    "name_cn": "Xfinity",
+    "domains": [
+      "xfinity.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\xfinity\\logo_appstore.png"
+  },
+  {
+    "id": "shopee",
+    "name": "Shopee",
+    "name_cn": "Shopee",
+    "domains": [
+      "shopee.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\shopee\\logo_appstore.png"
+  },
+  {
+    "id": "steam",
+    "name": "Steam",
+    "name_cn": "Steam",
+    "domains": [
+      "steampowered.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\steam\\logo_appstore.png"
+  },
+  {
+    "id": "paypal",
+    "name": "PayPal",
+    "name_cn": "PayPal",
+    "domains": [
+      "paypal.com"
+    ],
+    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\paypal\\logo_appstore.png"
+  }
+]
