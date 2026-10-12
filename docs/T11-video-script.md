@@ -18,13 +18,15 @@ Everything below is reproducible on this machine with the real pipeline.
 
 **Screen:** phone mock-up / split screen begins. A text message in a messaging app:
 
-> 「【统一身份认证】您的账号将于今日到期，请点击 ucas-portal.sso-login.cn 完成认证，逾期将停用。」
+> 「【支付宝安全中心】您的账号存在异常登录，请于今日内点击
+>   alipay-secure-login.top 完成身份验证，逾期将冻结账户。」
 
 **Narration (English):**
 
-> "A message from 'IT': your university account expires today. The link looks
-> official. One tap, and your password is gone. Phishing attacks are no longer
-> sloppy emails — they are one-click pages that clone the login screen you
+> "A text from 'Alipay Security Center': your account had an abnormal login,
+> verify within today or it will be frozen. The link looks almost official —
+> `alipay-secure-login.top`, not `alipay.com`. Phishing attacks are no longer
+> sloppy emails; they are one-click pages that clone the login screen you
 > trust. Blacklists can't keep up, and cloud scanners need your screen."
 
 **Visuals:** phone; the suspicious URL highlighted; a quick shot of a legit
@@ -38,23 +40,29 @@ if stat can't be cited).*
 
 ## Segment 2 — 0:20–1:30 · The demo
 
-**Screen:** desktop. Chrome with the PhishLens Edge extension loaded
-(`chrome://extensions` already open, extension "PhishLens Edge Guard"),
-and a terminal running `python server/app.py` (FastAPI @ 127.0.0.1:8765).
+**Screen:** desktop. Edge (note: use Edge 154 — Chrome 147 has no CLI
+unpacked-load support) with the PhishLens Edge extension loaded
+(`edge://extensions` already open, extension "PhishLens Edge Guard"),
+and a terminal running `.venv\Scripts\python.exe -m uvicorn app:app --port 8765`
+(FastAPI @ 127.0.0.1:8765). Both services come up via `start_demo.bat`.
 
 1. **0:20–0:35** Narrator reads the URL aloud; clicks the fake link
-   (`http://127.0.0.1:8000/fake_alipay/` — self-built test page, clearly
+   (`http://127.0.0.1:8001/fake_alipay.html` — self-built test page, clearly
    labeled "TEST FAKE PAGE" overlay while recording).
    The page renders — looks identical to the real login page (logo, form,
    input boxes).
 2. **0:35–0:50** Narrator: "The page looks right. But look at the domain —
-   `fake-alipay.local` vs `alipay.com`." On-screen callout compares the two
-   domains.
+   `alipay-secure-login.top` vs `alipay.com`." On-screen callout compares the
+   two domains.
 3. **0:50–1:15** Narrator clicks into the password box. **Instant full-screen
-   warning overlay** (Shadow DOM): "This page may be phishing you" —
-   spoofed brand: **支付宝 (Alipay)** / current domain:
-   `fake-alipay.local` / official domain: `alipay.com` — buttons:
-   **« Go back »** and **« I trust this page, continue »**.
+   warning overlay** (Shadow DOM, Chinese UI): badge `⚠ 疑似钓鱼网站`,
+   title `这可能不是 支付宝 官方页面`, domain rows
+   `当前域名 127.0.0.1` (red — the address-bar host, i.e. a local IP serving
+   the fake page) vs `正规域名 alipay.com` (green), buttons **`返回`** and
+   **`我确认安全，继续访问`** (English narration reads these as "Go back" /
+   "I trust this page, continue"). Narration: "The address bar says
+   `127.0.0.1` — no bank lives at a raw IP — and the form submits to
+   `alipay-secure-login.top`, one lookalike domain away from the real one."
 4. **1:15–1:30** Narrator clicks "Go back", lands on the real alipay.com
    login → extension does **not** block (official domain → L0 short-circuit,
    `allow`). "The same brand, the real domain — no warning. That's the three
@@ -64,12 +72,20 @@ and a terminal running `python server/app.py` (FastAPI @ 127.0.0.1:8765).
 (password-box focus) both happen on camera — turn on the "screenshot taken"
 debug toast in content.js if needed.*
 
+> **Demo-network note:** the "real alipay.com" pass-through shot needs
+> alipay.com to be reachable from the demo machine. If the venue network
+> blocks it, fall back to recording the pass-through on
+> `https://www.baidu.com` (whitelisted, L0 short-circuit) and keep the
+> narration identical ("a whitelisted domain — no analysis needed, no
+> screenshot of your credentials leaves the page").
+
 ---
 
 ## Segment 3 — 1:30–2:20 · Under the hood
 
 **Screen:** terminal / a small dashboard. Show the service event log
-(`server/server.log`, JSON Lines) with the just-analyzed request.
+(`server/event.log`, JSON Lines, one line per analysis: URL, decision, brand,
+per-level timings — no screenshot/DOM payload) with the just-analyzed request.
 
 Narrator walks the five levels on screen (use the architecture figure from
 `docs/architecture.png` or the brief's Figure 1):
@@ -79,10 +95,15 @@ Narrator walks the five levels on screen (use the architecture figure from
 | Request arrives, `url + DOM signals + screenshot (base64)` | "The extension sends the URL, DOM signals, and the screenshot — to 127.0.0.1. Nothing leaves this computer." |
 | **L0** domain whitelist + LRU cache, `< 1 ms` | "Level 0: whitelist and result cache. Real login pages short-circuit here." |
 | **L1** Faster R-CNN structure detection (~1.6 s CPU) | "Level 1: find logos and input boxes in the screenshot." |
-| **L2** OCR-aided Siamese + MobileNet brand matching (~0.7 s) | "Level 2: match the logo against the 299-brand local library — Alipay, 0.734 similarity, above 0.68." |
+| **L2** OCR-aided Siamese + MobileNet brand matching (~0.9 s) | "Level 2: match the logo against the local brand library — Alipay, 0.734 similarity, above 0.68." |
 | **L3** DOM credential check (~1 ms) | "Level 3: a password field is present — the page is asking for credentials." |
 | **L4** VLM review (uncertain → rule-based today, Qwen2-VL-2B on Hailo) | "Level 4: only genuinely uncertain cases reach a language model review." |
-| Decision: `block` | "All three conditions hold → block, total 2.1 seconds on CPU." |
+| Decision: `block` | "All three conditions hold → block. About 5 seconds end-to-end on CPU, dominated by the logo detector and feature extraction." |
+
+*The numbers above match a real run on this machine in T15
+(2026-10-08: L0 0.016 s, L1 1.56 s, L2 0.87 s, L3 <0.001 s, total 4.9 s incl.
+MobileNet embedder init; warm repeats are faster). `server/event.log` shows
+the live per-level timings to film — point the camera at it.*
 
 **Emphasize privacy:** "The screenshot lives in RAM, is never written to disk,
 never uploaded. The log keeps the URL, brand and decision — nothing more."
@@ -118,7 +139,9 @@ with an "ASUS UGen300 (Hailo-10H)" label.
 
 ## Recording checklist
 
-- [ ] Chrome/Edge with extension loaded unpacked; service started
+- [ ] **Edge 154** (not Chrome) with extension loaded unpacked via
+      `edge://extensions` → Load unpacked → `browser-extension/`; service
+      started with `start_demo.bat`
 - [ ] Self-built fake pages (`tools/make_fake_pages.py`) with visible
       "TEST FAKE PAGE" label → satisfies the "mark test pages" ethics rule
 - [ ] Real alipay.com login pass-through shot (L0 short-circuit, no block)

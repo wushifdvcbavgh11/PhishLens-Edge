@@ -7,7 +7,7 @@ from pathlib import Path
 
 import requests
 
-ROOT = Path("C:/Users/wushi/.qianfan/workspace/sessions/458fc032984144e19e0b2a360d5a5c27/2026-09-28/new-chat/phishlens-edge/brand_library")
+ROOT = Path(__file__).resolve().parent
 LOGO_DIR = ROOT / "logos"
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/147.0 Safari/537.36"}

@@ -6,7 +6,7 @@
     "domains": [
       "alipay.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\alipay\\logo_appstore.png"
+    "logo_path": "logos_web/alipay/logo_web.png"
   },
   {
     "id": "wechat",
@@ -16,7 +16,7 @@
       "weixin.qq.com",
       "wechat.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\wechat\\logo_appstore.png"
+    "logo_path": "logos_web/wechat/logo_web.png"
   },
   {
     "id": "qq",
@@ -26,7 +26,7 @@
       "im.qq.com",
       "qq.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\qq\\logo_appstore.png"
+    "logo_path": "logos_web/qq/logo_web.png"
   },
   {
     "id": "icbc",
@@ -35,7 +35,7 @@
     "domains": [
       "icbc.com.cn"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\icbc\\logo_appstore.png"
+    "logo_path": "logos/icbc/logo_appstore.png"
   },
   {
     "id": "ccb",
@@ -44,7 +44,7 @@
     "domains": [
       "ccb.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\ccb\\logo_appstore.png"
+    "logo_path": "logos/ccb/logo_appstore.png"
   },
   {
     "id": "abchina",
@@ -53,7 +53,7 @@
     "domains": [
       "abchina.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\abchina\\logo_appstore.png"
+    "logo_path": "logos/abchina/logo_appstore.png"
   },
   {
     "id": "boc",
@@ -62,7 +62,7 @@
     "domains": [
       "boc.cn"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\boc\\logo_appstore.png"
+    "logo_path": "logos/boc/logo_appstore.png"
   },
   {
     "id": "cmb",
@@ -71,7 +71,7 @@
     "domains": [
       "cmbchina.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\cmb\\logo_appstore.png"
+    "logo_path": "logos_web/cmb/logo_web.png"
   },
   {
     "id": "bankcomm",
@@ -80,7 +80,7 @@
     "domains": [
       "bankcomm.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\bankcomm\\logo_appstore.png"
+    "logo_path": "logos/bankcomm/logo_appstore.png"
   },
   {
     "id": "12306",
@@ -89,7 +89,7 @@
     "domains": [
       "12306.cn"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\12306\\logo_appstore.png"
+    "logo_path": "logos/12306/logo_appstore.png"
   },
   {
     "id": "geeren",
@@ -98,7 +98,7 @@
     "domains": [
       "chinatax.gov.cn"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\geeren\\logo_appstore.png"
+    "logo_path": "logos/geeren/logo_appstore.png"
   },
   {
     "id": "gjzwfw",
@@ -107,7 +107,7 @@
     "domains": [
       "gjzwfw.www.gov.cn"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\gjzwfw\\logo_appstore.png"
+    "logo_path": "logos/gjzwfw/logo_appstore.png"
   },
   {
     "id": "chsi",
@@ -116,7 +116,7 @@
     "domains": [
       "chsi.com.cn"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\chsi\\logo_appstore.png"
+    "logo_path": "logos/chsi/logo_appstore.png"
   },
   {
     "id": "exmail",
@@ -125,7 +125,7 @@
     "domains": [
       "exmail.qq.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\exmail\\logo_appstore.png"
+    "logo_path": "logos_web/exmail/logo_web.png"
   },
   {
     "id": "qiye163",
@@ -134,7 +134,7 @@
     "domains": [
       "qiye.163.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\qiye163\\logo_appstore.png"
+    "logo_path": "logos_web/qiye163/logo_web.png"
   },
   {
     "id": "alimail",
@@ -143,7 +143,7 @@
     "domains": [
       "alimail.alibaba.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\alimail\\logo_appstore.png"
+    "logo_path": "logos_web/alimail/logo_web.png"
   },
   {
     "id": "dingtalk",
@@ -152,7 +152,7 @@
     "domains": [
       "dingtalk.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\dingtalk\\logo_appstore.png"
+    "logo_path": "logos_web/dingtalk/logo_web.png"
   },
   {
     "id": "feishu",
@@ -162,7 +162,7 @@
       "feishu.cn",
       "larksuite.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\feishu\\logo_appstore.png"
+    "logo_path": "logos_web/feishu/logo_web.png"
   },
   {
     "id": "microsoft365",
@@ -170,9 +170,106 @@
     "name_cn": "微软365",
     "domains": [
       "microsoft.com",
-      "office.com"
+      "office.com",
+      "microsoftonline.com",
+      "live.com",
+      "outlook.com",
+      "sharepoint.com",
+      "azure.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\microsoft365\\logo_appstore.png"
+    "logo_path": "logos_web/microsoft365/logo_web.png"
+  },
+  {
+    "id": "psbc",
+    "name": "Postal Savings Bank of China",
+    "name_cn": "邮储银行",
+    "domains": [
+      "psbc.com",
+      "psbcltd.cn"
+    ],
+    "logo_path": "logos/psbc/logo.png"
+  },
+  {
+    "id": "pingan",
+    "name": "Ping An Bank",
+    "name_cn": "平安银行",
+    "domains": [
+      "pingan.com",
+      "bank.pingan.com"
+    ],
+    "logo_path": "logos_web/pingan/logo_web.png"
+  },
+  {
+    "id": "citic",
+    "name": "China CITIC Bank",
+    "name_cn": "中信银行",
+    "domains": [
+      "citicbank.com",
+      "ecitic.com"
+    ],
+    "logo_path": "logos/citic/logo.png"
+  },
+  {
+    "id": "spdb",
+    "name": "Shanghai Pudong Development Bank",
+    "name_cn": "浦发银行",
+    "domains": [
+      "spdb.com.cn"
+    ],
+    "logo_path": "logos/spdb/logo.png"
+  },
+  {
+    "id": "tsinghua",
+    "name": "Tsinghua University",
+    "name_cn": "清华大学",
+    "domains": [
+      "tsinghua.edu.cn",
+      "id.tsinghua.edu.cn"
+    ],
+    "logo_path": "logos/tsinghua/logo.png"
+  },
+  {
+    "id": "pku",
+    "name": "Peking University",
+    "name_cn": "北京大学",
+    "domains": [
+      "pku.edu.cn",
+      "iaaa.pku.edu.cn",
+      "portal.pku.edu.cn"
+    ],
+    "logo_path": "logos/pku/logo_apple.png"
+  },
+  {
+    "id": "fudan",
+    "name": "Fudan University",
+    "name_cn": "复旦大学",
+    "domains": [
+      "fudan.edu.cn",
+      "id.fudan.edu.cn",
+      "ehall.fudan.edu.cn"
+    ],
+    "logo_path": "logos_web/fudan/logo_web.png"
+  },
+  {
+    "id": "zju",
+    "name": "Zhejiang University",
+    "name_cn": "浙江大学",
+    "domains": [
+      "zju.edu.cn",
+      "zjuam.zju.edu.cn",
+      "my.zju.edu.cn"
+    ],
+    "logo_path": "logos/zju/logo.png"
+  },
+  {
+    "id": "sjtu",
+    "name": "Shanghai Jiao Tong University",
+    "name_cn": "上海交通大学",
+    "domains": [
+      "sjtu.edu.cn",
+      "jaccount.sjtu.edu.cn"
+    ],
+    "logo_path": "logos/sjtu/logo.png"
   },
   {
     "id": "taobao",
@@ -181,7 +278,7 @@
     "domains": [
       "taobao.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\taobao\\logo_appstore.png"
+    "logo_path": "logos_web/taobao/logo_web.png"
   },
   {
     "id": "jd",
@@ -190,7 +287,7 @@
     "domains": [
       "jd.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\jd\\logo_appstore.png"
+    "logo_path": "logos/jd/logo_appstore.png"
   },
   {
     "id": "pinduoduo",
@@ -199,7 +296,7 @@
     "domains": [
       "pinduoduo.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\pinduoduo\\logo_appstore.png"
+    "logo_path": "logos_web/pinduoduo/logo_web.png"
   },
   {
     "id": "coinbase",
@@ -208,7 +305,7 @@
     "domains": [
       "coinbase.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\coinbase\\logo_appstore.png"
+    "logo_path": "logos/coinbase/logo_appstore.png"
   },
   {
     "id": "metamask",
@@ -217,7 +314,7 @@
     "domains": [
       "metamask.io"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\metamask\\logo_appstore.png"
+    "logo_path": "logos_web/metamask/logo_web.png"
   },
   {
     "id": "ledger",
@@ -226,7 +323,7 @@
     "domains": [
       "ledger.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\ledger\\logo_appstore.png"
+    "logo_path": "logos_web/ledger/logo_web.png"
   },
   {
     "id": "instagram",
@@ -235,7 +332,7 @@
     "domains": [
       "instagram.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\instagram\\logo_appstore.png"
+    "logo_path": "logos_web/instagram/logo_web.png"
   },
   {
     "id": "xfinity",
@@ -244,7 +341,7 @@
     "domains": [
       "xfinity.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\xfinity\\logo_appstore.png"
+    "logo_path": "logos/xfinity/logo_appstore.png"
   },
   {
     "id": "shopee",
@@ -253,7 +350,7 @@
     "domains": [
       "shopee.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\shopee\\logo_appstore.png"
+    "logo_path": "logos_web/shopee/logo_web.png"
   },
   {
     "id": "steam",
@@ -262,7 +359,7 @@
     "domains": [
       "steampowered.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\steam\\logo_appstore.png"
+    "logo_path": "logos_web/steam/logo_web.png"
   },
   {
     "id": "paypal",
@@ -271,6 +368,6 @@
     "domains": [
       "paypal.com"
     ],
-    "logo_path": "C:\\Users\\wushi\\.qianfan\\workspace\\sessions\\458fc032984144e19e0b2a360d5a5c27\\2026-09-28\\new-chat\\phishlens-edge\\brand_library\\logos\\paypal\\logo_appstore.png"
+    "logo_path": "logos_web/paypal/logo_web.png"
   }
 ]

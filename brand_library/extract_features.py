@@ -15,7 +15,7 @@ import torch
 from PIL import Image
 from torchvision import models, transforms
 
-ROOT = Path("C:/Users/wushi/.qianfan/workspace/sessions/458fc032984144e19e0b2a360d5a5c27/2026-09-28/new-chat/phishlens-edge/brand_library")
+ROOT = Path(__file__).resolve().parent
 LOGO_DIR = ROOT / "logos"
 
 # brand_id -> (name_en, name_cn, official domains, logo file preference)
@@ -38,7 +38,16 @@ BRANDS = {
     "alimail":     ("Alibaba Mail", "阿里邮箱", ["alimail.alibaba.com"], "logo_appstore.png"),
     "dingtalk":    ("DingTalk", "钉钉", ["dingtalk.com"], "logo_appstore.png"),
     "feishu":      ("Feishu/Lark", "飞书", ["feishu.cn", "larksuite.com"], "logo_appstore.png"),
-    "microsoft365": ("Microsoft 365", "微软365", ["microsoft.com", "office.com"], "logo_appstore.png"),
+    "microsoft365": ("Microsoft 365", "微软365", ["microsoft.com", "office.com", "microsoftonline.com", "live.com", "outlook.com", "sharepoint.com", "azure.com"], "logo_appstore.png"),
+    "psbc":        ("Postal Savings Bank of China", "邮储银行", ["psbc.com", "psbcltd.cn"], "logo_appstore.png"),
+    "pingan":      ("Ping An Bank", "平安银行", ["pingan.com", "bank.pingan.com"], "logo_appstore.png"),
+    "citic":       ("China CITIC Bank", "中信银行", ["citicbank.com", "ecitic.com"], "logo_appstore.png"),
+    "spdb":        ("Shanghai Pudong Development Bank", "浦发银行", ["spdb.com.cn"], "logo_appstore.png"),
+    "tsinghua":    ("Tsinghua University", "清华大学", ["tsinghua.edu.cn", "id.tsinghua.edu.cn"], "logo_appstore.png"),
+    "pku":         ("Peking University", "北京大学", ["pku.edu.cn", "iaaa.pku.edu.cn", "portal.pku.edu.cn"], "logo_appstore.png"),
+    "fudan":       ("Fudan University", "复旦大学", ["fudan.edu.cn", "id.fudan.edu.cn", "ehall.fudan.edu.cn"], "logo_appstore.png"),
+    "zju":         ("Zhejiang University", "浙江大学", ["zju.edu.cn", "zjuam.zju.edu.cn", "my.zju.edu.cn"], "logo_appstore.png"),
+    "sjtu":        ("Shanghai Jiao Tong University", "上海交通大学", ["sjtu.edu.cn", "jaccount.sjtu.edu.cn"], "logo_appstore.png"),
     "taobao":      ("Taobao", "淘宝", ["taobao.com"], "logo_appstore.png"),
     "jd":          ("JD.com", "京东", ["jd.com"], "logo_appstore.png"),
     "pinduoduo":   ("Pinduoduo", "拼多多", ["pinduoduo.com"], "logo_appstore.png"),
@@ -74,11 +83,14 @@ def main():
     feats = []
     with torch.no_grad():
         for bid, (en, cn, dms, pref) in BRANDS.items():
-            d = LOGO_DIR / bid
-            logo = d / pref
+            # T15: prefer web-crawled logo (closer to real web-page distribution)
+            # over the App-Store icon (flat, white background, different style).
+            web_logo = ROOT / "logos_web" / bid / "logo_web.png"
+            app_logo = LOGO_DIR / bid / pref
+            logo = web_logo if web_logo.exists() else app_logo
             if not logo.exists():
                 # fallback: any png/jpg in dir with max size
-                cands = [f for f in d.iterdir() if f.suffix.lower() in (".png", ".jpg", ".jpeg") and "appstore" not in f.name]
+                cands = [f for f in (LOGO_DIR / bid).iterdir() if f.suffix.lower() in (".png", ".jpg", ".jpeg")]
                 if not cands:
                     print(f"[WARN] {bid}: no image found, skipped")
                     continue
@@ -89,9 +101,10 @@ def main():
             feat = feat / (np.linalg.norm(feat) + 1e-9)
             feats.append(feat)
             ids.append(bid); names_en.append(en); names_cn.append(cn)
-            domains.append(dms); logo_paths.append(str(logo))
-            sources.append("appstore/offical")  # placeholder, refine later
-            print(f"{bid:14s} {str(im.size):12s} feat_dim={feat.shape[0]}")
+            domains.append(dms); logo_paths.append(logo.relative_to(ROOT).as_posix())
+            src = "web" if web_logo.exists() else "appstore"
+            sources.append(src)
+            print(f"{bid:14s} {src:8s} {str(im.size):12s} feat_dim={feat.shape[0]}")
 
     feats = np.stack(feats).astype(np.float32)
     meta = []

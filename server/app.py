@@ -17,31 +17,44 @@ Output: decision in {block, allow, uncertain} + brand + official domain +
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
+import json
 import os
-import pickle
 import sys
-import tempfile
 import time
-import traceback
-from collections import OrderedDict
 from pathlib import Path
+from threading import Lock
+from typing import Literal
 from urllib.parse import urlparse
 
-import tldextract
+import numpy as np  # T17: in-memory screenshot decoding (no temp file)
+
 import yaml
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
-# sibling module (server/): Chinese-brand MobileNet fallback matcher (T7)
+# Sibling modules must also work when started as ``python server/app.py``.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import cn_brand_matcher  # noqa: E402
+from reliability import LRUCache, MODEL_VERSION, POLICY_VERSION  # noqa: E402
+from visual_brand import BrandIndex, choose_regions, inspect_regions, rgb_image
+
+# The saved UCI model uses unverified label/feature encodings. Do not import,
+# run DNS queries for, or fuse this classifier until it has been revalidated.
+UCI_DISABLED_REASON = "UCI_DISABLED_UNVALIDATED_ENCODING"
 
 # ---------------------------------------------------------------------------
 # Paths & model setup (weights already present from T2/T3)
 # ---------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if (REPO_ROOT / 'portable.json').is_file():
+    # Use the packaged public-suffix snapshot; never fetch a list on first run.
+    import tldextract
+    tldextract.extract = tldextract.TLDExtract(suffix_list_urls=(), cache_dir=None)
+    # Upstream imports the submodule directly rather than the package facade.
+    from tldextract import tldextract as tldextract_impl
+    tldextract_impl.extract = tldextract.extract
 PHISHINTENTION_ROOT = REPO_ROOT / "third_party" / "PhishIntention"
 PHISHINTENTION_SRC = PHISHINTENTION_ROOT / "src"
 
@@ -50,6 +63,12 @@ if str(PHISHINTENTION_SRC) not in sys.path:
 
 MODELS_READY = False
 MODELS_LOAD_ERROR: str | None = None
+MODEL_RETRY_DELAY_S = 30.0
+_MODEL_INIT_LOCK = Lock()
+_INFERENCE_LOCK = Lock()
+_MODELS_LAST_FAILURE = float("-inf")
+_CN_INIT_LOCK = Lock()
+_CN_LAST_FAILURE = float("-inf")
 
 # ---------------------------------------------------------------------------
 # L0: built-in brand whitelist (extended in T7 with 20-30 brands)
@@ -72,13 +91,21 @@ USER_FACING_BRAND = {  # brand display name -> official domains (host or suffix)
     "中国银行": ["boc.cn"],
     "招商银行": ["cmbchina.com"],
     "交通银行": ["bankcomm.com"],
-    "邮储银行": ["psbc.com"],
+    "邮储银行": ["psbc.com", "psbcltd.cn"],
+    "平安银行": ["pingan.com", "bank.pingan.com"],
+    "中信银行": ["citicbank.com", "ecitic.com"],
+    "浦发银行": ["spdb.com.cn"],
+    "清华大学": ["tsinghua.edu.cn", "id.tsinghua.edu.cn"],
+    "北京大学": ["pku.edu.cn", "iaaa.pku.edu.cn", "portal.pku.edu.cn"],
+    "复旦大学": ["fudan.edu.cn", "id.fudan.edu.cn", "ehall.fudan.edu.cn"],
+    "浙江大学": ["zju.edu.cn", "zjuam.zju.edu.cn", "my.zju.edu.cn"],
+    "上海交通大学": ["sjtu.edu.cn", "jaccount.sjtu.edu.cn"],
     "12306": ["12306.cn"],
     "学信网": ["chsi.com.cn"],
     "PayPal": ["paypal.com"],
     "Google": ["google.com", "google.com.hk", "google.cn"],
     "Apple": ["apple.com", "icloud.com"],
-    "Microsoft": ["microsoft.com", "office.com", "live.com"],
+    "Microsoft": ["microsoft.com", "office.com", "microsoftonline.com", "live.com", "outlook.com", "sharepoint.com", "azure.com"],
     "Amazon": ["amazon.com", "amazon.cn"],
     "Facebook": ["facebook.com"],
     "Instagram": ["instagram.com"],
@@ -91,33 +118,34 @@ USER_FACING_BRAND = {  # brand display name -> official domains (host or suffix)
     "Steam": ["steampowered.com"],
 }
 
-# Extra domains that must never be blocked (search engines, gov, edu, etc.)
+# Explicit official domains. Entire public suffixes must never be exempted.
 EXTRA_WHITELIST = [
     "baidu.com", "google.com", "bing.com", "qq.com", "zhihu.com", "weibo.com",
-    "gov.cn", "edu.cn", "cninfo.com.cn", "sse.com.cn", "szse.cn",
+    "cninfo.com.cn", "sse.com.cn", "szse.cn",
     "facebook.com", "amazon.com", "paypal.com", "instagram.com", "steampowered.com",
+    # --- frequently mis-identified brands (added 2026-10-11) ---
+    "openai.com", "chatgpt.com", "deepseek.com", "microsoft.com",
+    "office.com", "live.com", "outlook.com", "apple.com", "icloud.com",
+    "github.com", "twitter.com", "x.com", "linkedin.com",
 ]
 
 
-class LRUCache:
-    def __init__(self, capacity: int = 256):
-        self.capacity = capacity
-        self._store: OrderedDict[str, dict] = OrderedDict()
-
-    def get(self, key: str):
-        if key in self._store:
-            self._store.move_to_end(key)
-            return self._store[key]
-        return None
-
-    def put(self, key: str, value: dict):
-        self._store[key] = value
-        self._store.move_to_end(key)
-        if len(self._store) > self.capacity:
-            self._store.popitem(last=False)
-
-
 RESULT_CACHE = LRUCache(256)
+
+
+def build_cache_key(req: "AnalyzeRequest", img_bytes: bytes | None = None) -> str:
+    """Bind a verdict to pixels, complete DOM context, mode and policy/model versions."""
+    screenshot = img_bytes if img_bytes is not None else req.screenshot_base64.encode("utf-8")
+    payload = {
+        "url": req.url,
+        "screenshot_sha256": hashlib.sha256(screenshot).hexdigest(),
+        "dom_signals": req.dom_signals.model_dump() if req.dom_signals is not None else None,
+        "analysis_mode": req.analysis_mode,
+        "policy_version": POLICY_VERSION,
+        "model_version": MODEL_VERSION,
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def hostname_matches(host: str, official: list[str]) -> bool:
@@ -131,15 +159,33 @@ def hostname_matches(host: str, official: list[str]) -> bool:
 
 
 def load_models():
-    """Lazy-load AWL detector + Siamese matcher (CPU). One-shot, cached."""
-    global MODELS_READY, MODELS_LOAD_ERROR
-    if MODELS_READY:
-        return
-    if MODELS_LOAD_ERROR:
-        raise RuntimeError(MODELS_LOAD_ERROR)
+    """Initialize once at a time, and retry failures after a bounded cooldown."""
+    global MODELS_READY, MODELS_LOAD_ERROR, _MODELS_LAST_FAILURE, _MODELS
+    with _MODEL_INIT_LOCK:
+        if MODELS_READY:
+            return
+        if MODELS_LOAD_ERROR and time.monotonic() - _MODELS_LAST_FAILURE < MODEL_RETRY_DELAY_S:
+            raise RuntimeError(f"模型初始化暂不可用，稍后重试: {MODELS_LOAD_ERROR}")
+        try:
+            models = _initialize_models()
+        except Exception as exc:
+            MODELS_LOAD_ERROR = f"{type(exc).__name__}: {exc}"
+            _MODELS_LAST_FAILURE = time.monotonic()
+            raise RuntimeError(MODELS_LOAD_ERROR) from exc
+        _MODELS = models
+        MODELS_LOAD_ERROR = None
+        MODELS_READY = True
+
+
+def _initialize_models():
+    """Build model state without publishing partially initialized globals.
+
+    Upstream AWL config paths are cwd-relative. The new brand cache has explicit
+    ordered records and content/model hashes; it never relies on directory order.
+    """
     t0 = time.time()
+    old_cwd = os.getcwd()
     try:
-        old_cwd = os.getcwd()
         # detectron2 config paths in configs.yaml are cwd-relative
         os.chdir(PHISHINTENTION_ROOT)
         with open(PHISHINTENTION_ROOT / "configs" / "configs.yaml", "r", encoding="utf-8") as f:
@@ -156,9 +202,10 @@ def load_models():
         from phishintention.modules.logo_matching import (
             siamese_model_config,
             ocr_model_config,
-            cache_reference_list,
-            check_domain_brand_inconsistency,
+            get_ocr_aided_siamese_embedding,
         )
+        import torch
+        torch.set_num_threads(2)
 
         awl = config_rcnn(
             cfg_path=cfg["AWL_MODEL"]["CFG_PATH"],
@@ -171,51 +218,47 @@ def load_models():
         )
         ocr = ocr_model_config(weights_path=cfg["SIAMESE_MODEL"]["OCR_WEIGHTS_PATH"])
 
-        # brand logo feature cache (LOGO_FEATS.npy built in T3, ~31MB)
-        targetlist_dir = os.path.dirname(cfg["SIAMESE_MODEL"]["TARGETLIST_PATH"])
-        zip_name = os.path.basename(cfg["SIAMESE_MODEL"]["TARGETLIST_PATH"])
-        targetlist_folder = os.path.join(targetlist_dir, zip_name.replace(".zip", ""))
-        logo_feats, logo_files = cache_reference_list(
-            model=siamese, ocr_model=ocr, targetlist_path=targetlist_folder, reload_targetlist=False
-        )
-        os.chdir(old_cwd)
+        brand_index = BrandIndex.load(REPO_ROOT)
 
-        # cache_reference_list returns cwd-relative logo paths, but pred_brand()
-        # Image.open()s them later while the server cwd is elsewhere -> absolutize.
-        def _abs_logo_path(p: str) -> str:
-            if os.path.isabs(p):
-                return p
-            joined = os.path.abspath(os.path.join(PHISHINTENTION_ROOT, p))
-            if os.name == "nt" and len(joined) > 240:
-                joined = "\\\\?\\" + joined
-            return joined
-
-        logo_files = [_abs_logo_path(p) for p in logo_files]
-
-        global _MODELS
-        _MODELS = {
+        return {
             "awl": awl,
             "siamese": siamese,
             "ocr": ocr,
-            "logo_feats": logo_feats,
-            "logo_files": logo_files,
-            "siamese_thre": float(cfg["SIAMESE_MODEL"]["MATCH_THRE"]),
-            # check_domain_brand_inconsistency opens this with open(domain_map_path),
-            # so it must be absolute (cwd may change between the load and the call)
-            "domain_map_path": str(PHISHINTENTION_ROOT / cfg["SIAMESE_MODEL"]["DOMAIN_MAP_PATH"]),
+            "brand_index": brand_index,
+            "embed_logo": lambda image: get_ocr_aided_siamese_embedding(rgb_image(image), siamese, ocr),
             "pred_rcnn": pred_rcnn,
             "find_element_type": find_element_type,
-            "check_domain_brand_inconsistency": check_domain_brand_inconsistency,
             "load_time_s": round(time.time() - t0, 2),
         }
-        MODELS_READY = True
-    except Exception as exc:  # noqa: BLE001
-        MODELS_LOAD_ERROR = f"{type(exc).__name__}: {exc}"
-        traceback.print_exc()
-        raise RuntimeError(MODELS_LOAD_ERROR) from exc
+    finally:
+        os.chdir(old_cwd)
 
 
 _MODELS: dict = {}
+
+
+def _pred_rcnn_from_bytes(img_bytes: bytes, predictor):
+    """T17: in-memory equivalent of PhishIntention's ``pred_rcnn``.
+
+    The upstream helper reads the screenshot from disk via ``cv2.imread``;
+    here we decode the same PNG bytes straight into a BGR ndarray
+    (``cv2.imdecode``) so no temp file is ever written. Return values are
+    identical: (pred_boxes, pred_classes, pred_scores).
+    """
+    import cv2
+
+    im = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+    if im is None:
+        raise ValueError("截图无法解码为图像")
+    if im.shape[-1] == 4:
+        im = cv2.cvtColor(im, cv2.COLOR_BGRA2BGR)
+    outputs = predictor(im)
+    instances = outputs["instances"]
+    return (
+        instances.pred_boxes.tensor.detach().cpu(),
+        instances.pred_classes.detach().cpu(),
+        instances.scores,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +289,9 @@ def url_suspicion_score(url: str) -> dict:
         score += 1
         reasons.append("域名异常冗长或含多个连字符")
     # suspicious TLD
-    ext = tldextract.extract(url).suffix
+    # Every configured suspicious suffix is one label; no online PSL refresh is
+    # necessary for this inexpensive heuristic.
+    ext = host.rsplit(".", 1)[-1]
     if ("." + ext) in SUSPICIOUS_TLDS:
         score += 2
         reasons.append(f"可疑顶级域 .{ext}")
@@ -264,7 +309,7 @@ def url_suspicion_score(url: str) -> dict:
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
-app = FastAPI(title="PhishLens Edge Guard local service", version="0.1.0")
+app = FastAPI(title="PhishLens Edge Guard local service", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -274,221 +319,372 @@ app.add_middleware(
 )
 
 
+class RegionSignal(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+    box: list[float] = Field(min_length=4, max_length=4)
+    interactive: bool = False
+
+
+class CredentialContext(RegionSignal):
+    text: str = Field(default='', max_length=600)
+
+
+class ViewportSignal(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+    width: float = Field(gt=0, le=32768)
+    height: float = Field(gt=0, le=32768)
+
+
 class DomSignals(BaseModel):
     page_domain: str = ""
-    has_password_input: bool = False
-    has_login_form: bool = False
+    # None means unknown, rather than claiming that no password field exists.
+    has_password_input: bool | None = None
+    has_login_form: bool | None = None
     form_action_domains: list[str] = Field(default_factory=list)
     title: str = ""
     favicon: str = ""
     brand_hints: list[str] = Field(default_factory=list)
+    page_fingerprint: str = ""
+    viewport: ViewportSignal | None = None
+    logo_regions: list[RegionSignal] = Field(default_factory=list, max_length=8)
+    credential_contexts: list[CredentialContext] = Field(default_factory=list, max_length=8)
 
 
 class AnalyzeRequest(BaseModel):
-    url: str
+    url: str = ""
     screenshot_base64: str
     dom_signals: DomSignals | None = None
     trigger: str = "manual"
+    analysis_mode: Literal["browser", "screenshot_only"] = "browser"
+
+
+def _disabled_uci_result():
+    return {
+        "enabled": False,
+        "hint": "disabled",
+        "reason_code": UCI_DISABLED_REASON,
+        "reason": "UCI 标签及在线特征编码尚未重新验证，已暂停推理及决策融合",
+        "model_loaded": False,
+        "phish_prob": None,
+    }
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "models_ready": MODELS_READY, "cache_size": len(RESULT_CACHE._store)}
+    return {
+        "status": "ok",
+        "models_ready": MODELS_READY,
+        "models_load_error": MODELS_LOAD_ERROR,
+        "cache_size": len(RESULT_CACHE),
+        "policy_version": POLICY_VERSION,
+        "uci_prefilter": _disabled_uci_result(),
+        "model_version": MODEL_VERSION,
+        "reference_version": _MODELS['brand_index'].version if MODELS_READY else None,
+    }
+
+
+def _url_host(url: str) -> str:
+    """Accept a real HTTP(S) URL, never a desktop sentinel or guessed scheme."""
+    try:
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower().rstrip(".")
+        # Accessing port validates invalid/out-of-range port strings.
+        parsed.port
+        if parsed.scheme.lower() not in ("http", "https") or not host:
+            return ""
+        if any(c.isspace() for c in url) or any(c in host for c in "_/%\\"):
+            return ""
+        return host.encode("idna").decode("ascii")
+    except (ValueError, UnicodeError):
+        return ""
+
+
+def _page_host(value: str) -> str:
+    try:
+        return value.lower().rstrip(".").encode("idna").decode("ascii")
+    except UnicodeError:
+        return ""
+
+
+def _decode_screenshot(value: str) -> bytes:
+    """Validate both base64 and image content before allowing any fast path."""
+    from PIL import Image
+
+    raw = value.split(",", 1)[1] if value.startswith("data:") else value
+    img_bytes = base64.b64decode(raw, validate=True)
+    if not img_bytes:
+        raise ValueError("截图为空")
+    with Image.open(io.BytesIO(img_bytes)) as img:
+        img.verify()
+    return img_bytes
+
+
+def _match_cn_logo(img_bytes, logo_boxes):
+    """Keep optional torch/torchvision imports off the HTTP service startup path."""
+    global _CN_LAST_FAILURE
+    import cn_brand_matcher
+
+    with _CN_INIT_LOCK:
+        # The legacy matcher remembers errors indefinitely; make retries follow
+        # the same cooldown as the primary model without changing its module.
+        if cn_brand_matcher._load_error:
+            if time.monotonic() - _CN_LAST_FAILURE < MODEL_RETRY_DELAY_S:
+                raise RuntimeError(cn_brand_matcher._load_error)
+            cn_brand_matcher._load_error = None
+        try:
+            cn_brand_matcher.load_index()
+        except Exception:
+            _CN_LAST_FAILURE = time.monotonic()
+            raise
+    return cn_brand_matcher.match_logo_boxes(io.BytesIO(img_bytes), logo_boxes)
+
+
+def _analyze_visual(img_bytes: bytes, url: str, dom=None) -> dict:
+    """Recognize pixels independently of URL; page metadata only locates crops."""
+    from PIL import Image
+    load_models()
+    dom = dom or {}
+    m = _MODELS
+    started = time.monotonic()
+    with _INFERENCE_LOCK:
+        boxes, classes, scores = _pred_rcnn_from_bytes(img_bytes, m["awl"])
+        logos, _ = m["find_element_type"](boxes, classes, bbox_type="logo")
+        blocks, _ = m["find_element_type"](boxes, classes, bbox_type="block")
+        detection_time = time.monotonic() - started
+        with Image.open(io.BytesIO(img_bytes)) as image:
+            regions = choose_regions(image.size, logos, blocks, dom.get('logo_regions', []), dom.get('viewport'))
+            evidence = inspect_regions(image, regions, m['brand_index'], m['embed_logo'])
+            evidence['image_size'] = list(image.size)
+            evidence['detections'] = [{'box': [round(float(v), 2) for v in box],
+                'class': int(kind), 'score': round(float(score), 5)}
+                for box, kind, score in list(zip(boxes, classes, scores))[:32]]
+    hit = evidence['hit']
+    candidates = [c for r in evidence['regions'] for c in r['candidates']]
+    candidate = max(candidates, key=lambda c: c['similarity']) if candidates else None
+    messages = {
+        'NO_LOGO_REGION': '当前截图未找到可用 Logo，请回到品牌标志所在位置重新检测',
+        'AMBIGUOUS_BRANDS': '多个品牌外观相近，暂时无法可靠区分',
+        'MULTIPLE_BRANDS': '页面包含多个品牌，尚不能确定凭据表单所属品牌',
+        'BRAND_UNCONFIRMED': '已检查图像候选，但视觉证据不足以确认品牌',
+        'BRAND_CONFIRMED': '视觉参考库确认品牌匹配',
+    }
+    return {
+        'brand': hit['name'] if hit else None,
+        'official_domain': ','.join(hit['domains']) if hit else None,
+        'brand_unconfirmed': hit is None,
+        'brand_candidate': ({'name': candidate['name'], 'similarity': candidate['similarity'],
+                             'source': 'siamese_reference'} if candidate else None),
+        'visual_evidence': evidence,
+        'reasons': [messages[evidence['status']]],
+        'level_times': {'l1_logo_det': round(detection_time, 3),
+                        'l2_logo_match': round(time.monotonic()-started-detection_time, 3)},
+        'l1_logo_boxes': len(logos),
+        'l1_block_fallback': any(r['source'] == 'page_block' for r in regions),
+        'l2_matched': hit is not None,
+    }
+
+
+def _credential_brand_link(ds, evidence):
+    """A payment/social-login badge plus an unrelated password is insufficient.
+
+    Require a recognized, non-control image inside a compact credential container
+    that names the same brand. Text alone can never produce a visual hit.
+    """
+    import re
+    hit = evidence.get('hit') if evidence else None
+    if not hit or not ds or not ds.viewport:
+        return False
+    size = evidence.get('image_size', [0, 0])
+    if not size[0] or not size[1]:
+        return False
+    sx, sy = ds.viewport.width / size[0], ds.viewport.height / size[1]
+    x1, y1, x2, y2 = hit['box']
+    cx, cy = (x1+x2)*sx/2, (y1+y2)*sy/2
+    aliases = hit.get('aliases', [hit['name']])
+    for context in ds.credential_contexts:
+        a, b, c, d = context.box
+        if context.interactive or not (a <= cx <= c and b <= cy <= d):
+            continue
+        if c <= a or d <= b or c-a > ds.viewport.width*.95:
+            continue
+        text = context.text.casefold()
+        for alias in aliases:
+            alias = alias.casefold().strip()
+            if len(alias) < 2:
+                continue
+            if re.search(r'[\u3400-\u9fff]', alias):
+                matches = alias in text
+            else:
+                matches = re.search(r'(?<![a-z0-9])'+re.escape(alias)+r'(?![a-z0-9])', text) is not None
+            if matches:
+                return True
+    return False
+
+
+def _record_event(req, out):
+    try:
+        event = {
+            "ts": round(time.time(), 3), "url": req.url[:160],
+            "decision": out["decision"], "analysis_status": out["analysis_status"],
+            "analysis_mode": out["analysis_mode"], "policy_version": POLICY_VERSION,
+            "reason_codes": out["reason_codes"], "brand": out["brand"],
+            "official_domain": out["official_domain"], "level_times": out["level_times"],
+            "total_time_s": out["total_time_s"], "from_cache": out["from_cache"],
+            "brand_unconfirmed": out.get("brand_unconfirmed", False),
+            "brand_candidate": out.get("brand_candidate"),
+            "visual_evidence": out.get("visual_evidence"),
+            "credential_brand_linked": out.get("credential_brand_linked", False),
+        }
+        log_path = Path(os.environ.get('PHISHLENS_EVENT_LOG', str(Path(__file__).resolve().parent / 'event.log')))
+        with open(log_path, "a", encoding="utf-8") as stream:
+            stream.write(json.dumps(event, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
 
 
 @app.post("/analyze")
 def analyze(req: AnalyzeRequest):
     t_total = time.time()
-    level_times: dict[str, float] = {}
-    reasons: list[str] = []
-    decision = "allow"
-    brand: str | None = None
-    official_domain: str | None = None
+    out = {
+        "decision": "uncertain", "analysis_status": "completed",
+        "analysis_mode": req.analysis_mode, "policy_version": POLICY_VERSION,
+        "reason_codes": [], "reasons": [], "brand": None, "official_domain": None,
+        "level_times": {}, "from_cache": False, "visual_error": None,
+        "models_load_time_s": None, "uci_prefilter": _disabled_uci_result(),
+        "l1_logo_boxes": 0, "l1_block_fallback": False, "l2_matched": False,
+        "brand_unconfirmed": False, "brand_candidate": None,
+    }
+    cache_key = None
 
-    # ---------- L0: whitelist + LRU cache ----------
-    t0 = time.time()
-    parsed = urlparse(req.url if "://" in req.url else "http://" + req.url)
-    host = (parsed.hostname or "").lower().rstrip(".")
-    ext_obj = tldextract.extract(req.url)
-    registered_domain = f"{ext_obj.domain}.{ext_obj.suffix}" if ext_obj.domain else ""
+    def add_reason(code, reason):
+        out["reason_codes"].append(code)
+        out["reasons"].append(reason)
 
-    cached = RESULT_CACHE.get(req.url)
-    if cached:
-        cached["from_cache"] = True
-        cached["level_times"] = {"l0_cache_hit": round(time.time() - t_total, 3)}
-        return cached
-
-    whitelisted = False
-    if hostname_matches(host, EXTRA_WHITELIST) or registered_domain in EXTRA_WHITELIST:
-        whitelisted = True
-    elif req.dom_signals and req.dom_signals.page_domain and hostname_matches(req.dom_signals.page_domain, EXTRA_WHITELIST):
-        whitelisted = True
-    level_times["l0_whitelist"] = round(time.time() - t0, 3)
-
-    if whitelisted:
-        out = {
-            "decision": "allow",
-            "brand": None,
-            "official_domain": None,
-            "reasons": ["域名在白名单内"],
-            "level_times": level_times,
-            "total_time_s": round(time.time() - t_total, 3),
-            "from_cache": False,
-        }
-        RESULT_CACHE.put(req.url, out)
+    def finish(status=None):
+        if status is not None:
+            out["analysis_status"] = status
+        if out["analysis_status"] != "completed":
+            out["decision"] = "uncertain"
+        out["total_time_s"] = round(time.time() - t_total, 3)
+        _record_event(req, out)
+        if cache_key and out["analysis_status"] == "completed":
+            RESULT_CACHE.put(cache_key, out)
         return out
 
-    # ---------- decode screenshot ----------
-    try:
-        if req.screenshot_base64.startswith("data:"):
-            raw = req.screenshot_base64.split(",", 1)[1]
-        else:
-            raw = req.screenshot_base64
-        img_bytes = base64.b64decode(raw)
-    except Exception:  # noqa: BLE001
-        img_bytes = None
-
-    # ---------- L1-2: logo detection + brand matching (CPU) ----------
-    matched_target = None
-    matched_domain = None
-    matched_conf = None
-    visual_error = None
-    if img_bytes:
-        try:
-            load_models()
-            m = _MODELS
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                tmp.write(img_bytes)
-                tmp_path = tmp.name
-            t1 = time.time()
-            boxes, classes, _ = m["pred_rcnn"](im=tmp_path, predictor=m["awl"])
-            logo_boxes, _ = m["find_element_type"](boxes, classes, bbox_type="logo")
-            level_times["l1_logo_det"] = round(time.time() - t1, 3)
-
-            # T7: the AWL YOLO was trained on web-page logos; App-Store-style flat
-            # icons (our CN brand icons) are often classified as `block` instead.
-            # If no logo box came out, take top-area blocks as logo candidates.
-            if len(logo_boxes) == 0:
-                block_boxes, _ = m["find_element_type"](boxes, classes, bbox_type="block")
-                if len(block_boxes) > 0:
-                    from PIL import Image as _PILImage
-                    with _PILImage.open(tmp_path) as _im:
-                        _h = _im.height
-                    top_area = [b for b in block_boxes if float(b[1]) < 0.45 * _h]
-                    if len(top_area) > 0:
-                        logo_boxes = __import__("torch").stack([b for b in top_area])
-                        reasons.append("Logo 类未检出，改用页面顶部区域块作为候选")
-            t2 = time.time()
-            if len(logo_boxes) > 0:
-                matched_target, matched_domain, matched_coord, matched_conf = m["check_domain_brand_inconsistency"](
-                    logo_boxes, m["domain_map_path"], m["siamese"], m["ocr"],
-                    m["logo_feats"], m["logo_files"], tmp_path,
-                    req.url, m["siamese_thre"],
-                )
-                if matched_target is not None and matched_domain is not None:
-                    brand = matched_target
-                    if isinstance(matched_domain, list):
-                        official_domain = ",".join(matched_domain)
-                    else:
-                        official_domain = str(matched_domain)
-                    reasons.append(f"Logo 匹配品牌 {brand}（相似度 {float(matched_conf or 0):.3f}）")
-
-                    # extra cross-check against built-in brand list
-                    if matched_target in USER_FACING_BRAND:
-                        official_domain = ",".join(USER_FACING_BRAND[matched_target])
-                else:
-                    # T7: PhishIntention covers English brands only; fall back to
-                    # the MobileNet Chinese-brand matcher for the same logo boxes.
-                    cn_hit = cn_brand_matcher.match_logo_boxes(tmp_path, logo_boxes)
-                    if cn_hit is not None:
-                        brand = cn_hit["name_cn"]
-                        official_domain = ",".join(cn_hit["domains"])
-                        reasons.append(
-                            f"Logo 匹配中文品牌 {brand}（MobileNet 相似度 {cn_hit['sim']:.3f}）"
-                        )
-                        matched_conf = cn_hit["sim"]
-            level_times["l2_logo_match"] = round(time.time() - t2, 3)
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-        except Exception as exc:  # noqa: BLE001
-            visual_error = f"{type(exc).__name__}: {exc}"
-            traceback.print_exc()
-
-    # ---------- L3: DOM credential signal ----------
-    t3 = time.time()
+    host = _url_host(req.url)
     ds = req.dom_signals
-    cred_signal = False
-    if ds:
-        if ds.has_password_input:
-            cred_signal = True
-            reasons.append("页面存在密码输入框（索要凭据）")
-        if ds.has_login_form:
-            reasons.append("页面存在登录表单")
-        # form action pointing outside the page domain = credential exfiltration risk
-        if ds.form_action_domains:
-            for action_domain in ds.form_action_domains:
-                if action_domain and action_domain != host and not hostname_matches(action_domain, [host]):
-                    cred_signal = True
-                    reasons.append(f"表单 action 指向外部域名 {action_domain}")
-                    break
-        # brand hint cross-check
-        if brand and ds.brand_hints:
-            if any(bh.lower() in brand.lower() or brand.lower() in bh.lower() for bh in ds.brand_hints):
-                reasons.append("页面文本品牌提示与视觉匹配品牌一致")
-    level_times["l3_dom"] = round(time.time() - t3, 3)
-
-    # ---------- L4: rule-based review (VLM hook placeholder) ----------
-    t4 = time.time()
-    sus = url_suspicion_score(req.url) if not whitelisted else {"score": 0, "reasons": []}
-    for r in sus["reasons"]:
-        reasons.append(r)
-    level_times["l4_rules"] = round(time.time() - t4, 3)
-
-    # ---------- Fuse into three-state decision ----------
-    # 三条件判定：视觉 logo 匹配 + 索要凭据 + 域名与正规域名不一致
-    # brand matched by either Path (PhishIntention English / MobileNet Chinese)
-    brand_domain_inconsistent = False
-    if brand and official_domain:
-        official_list = [d.strip() for d in official_domain.split(",") if d.strip()]
-        # domain mismatch: neither the URL host nor the declared page domain is official
-        page_host_ok = bool(req.dom_signals and req.dom_signals.page_domain
-                            and hostname_matches(req.dom_signals.page_domain, official_list))
-        brand_domain_inconsistent = not (hostname_matches(host, official_list) or page_host_ok)
-        if brand_domain_inconsistent:
-            reasons.append(f"当前域名 {host} 与品牌 {brand} 正规域名不一致")
-
-    if brand and brand_domain_inconsistent:
-        if cred_signal or sus["score"] >= 2:
-            decision = "block"
-            reasons.append("视觉品牌匹配且域名与正规域名不一致，页面索要凭据/域名可疑")
-        else:
-            decision = "uncertain"
-            reasons.append("视觉品牌匹配但域名不一致，未确认索要凭据，建议 VLM 复核")
-    elif cred_signal and sus["score"] >= 3:
-        decision = "uncertain"
-        reasons.append("存在凭据索要信号且域名高度可疑，建议 VLM 复核")
-    elif cred_signal and visual_error is None and sus["score"] >= 2:
-        decision = "uncertain"
+    context_complete = False
+    if req.analysis_mode == "screenshot_only":
+        add_reason("SCREENSHOT_ONLY", "仅有截图，无法确认真实网址和凭据表单；本次只提供视觉线索")
+        out["analysis_status"] = "degraded"
+        # A screenshot client cannot establish URL/DOM authenticity by supplying
+        # guessed values. Ignore them for every security decision in this mode.
+        host = ""
+        ds = None
     else:
-        decision = "allow"
-        if not reasons:
-            reasons.append("未发现可靠钓鱼信号")
+        if not host:
+            add_reason("INVALID_URL", "缺少有效的 HTTP(S) 网址，无法完成浏览器安全判断")
+            return finish("failed")
+        if ds is not None and ds.page_domain and _page_host(ds.page_domain) != host:
+            add_reason("PAGE_DOMAIN_MISMATCH", "页面声明域名与请求网址不一致，无法可靠判断")
+            return finish("failed")
+        context_complete = bool(ds is not None and ds.page_domain and ds.has_password_input is not None)
+        if not context_complete:
+            add_reason("BROWSER_CONTEXT_MISSING", "缺少可信的页面域名或密码输入框状态，无法完成判断")
+            out["analysis_status"] = "degraded"
 
-    out = {
-        "decision": decision,
-        "brand": brand,
-        "official_domain": official_domain,
-        "reasons": reasons,
-        "level_times": level_times,
-        "total_time_s": round(time.time() - t_total, 3),
-        "from_cache": False,
-        "visual_error": visual_error,
-        "models_load_time_s": _MODELS.get("load_time_s") if MODELS_READY else None,
-    }
-    RESULT_CACHE.put(req.url, out)
-    return out
+    try:
+        img_bytes = _decode_screenshot(req.screenshot_base64)
+    except Exception as exc:
+        out["visual_error"] = f"{type(exc).__name__}: {exc}"
+        add_reason("IMAGE_DECODE_FAILED", "截图为空、损坏或不是有效图像，检测未完成")
+        return finish("failed")
+
+    # Only complete browser context is eligible for cache or domain shortcuts.
+    if context_complete:
+        cache_key = build_cache_key(req, img_bytes)
+        cached = RESULT_CACHE.get(cache_key)
+        if cached is not None:
+            cached["from_cache"] = True
+            cached["level_times"] = {"l0_cache_hit": round(time.time() - t_total, 3)}
+            cached["total_time_s"] = round(time.time() - t_total, 3)
+            return cached
+        t0 = time.time()
+        whitelisted = hostname_matches(host, EXTRA_WHITELIST)
+        out["level_times"]["l0_whitelist"] = round(time.time() - t0, 3)
+        if whitelisted:
+            out["decision"] = "allow"
+            add_reason("WHITELIST_MATCH", "请求网址的域名在明确白名单内")
+            return finish()
+
+    try:
+        visual = _analyze_visual(img_bytes, req.url if host else "", ds.model_dump() if ds else None)
+        out["brand"] = visual["brand"]
+        out["official_domain"] = visual["official_domain"]
+        out["reasons"].extend(visual["reasons"])
+        out["level_times"].update(visual["level_times"])
+        for field in ("l1_logo_boxes", "l1_block_fallback", "l2_matched"):
+            out[field] = visual[field]
+        out["brand_unconfirmed"] = visual.get("brand_unconfirmed", False)
+        out["brand_candidate"] = visual.get("brand_candidate")
+        out["visual_evidence"] = visual.get("visual_evidence", {})
+        out["models_load_time_s"] = _MODELS.get("load_time_s") if MODELS_READY else None
+    except Exception as exc:
+        out["visual_error"] = f"{type(exc).__name__}: {exc}"
+        add_reason("VISUAL_ANALYSIS_FAILED", "视觉模型不可用或推理失败，检测未完成，请稍后重试")
+        return finish("failed")
+
+    if not context_complete:
+        return finish("degraded")
+
+    # Only an explicitly observed password field supplies credential evidence.
+    # Login-form existence, external actions and suspicious URLs do not replace it.
+    t3 = time.time()
+    credential_observed = ds.has_password_input is True
+    if credential_observed:
+        add_reason("PASSWORD_INPUT_DETECTED", "页面存在密码输入框（索要凭据）")
+    external_action = any(
+        action and not hostname_matches(_page_host(action), [host])
+        for action in ds.form_action_domains
+    )
+    if external_action:
+        add_reason("EXTERNAL_FORM_ACTION", "表单 action 指向外部域名，需进一步核实")
+    out["level_times"]["l3_dom"] = round(time.time() - t3, 3)
+    t4 = time.time()
+    sus = url_suspicion_score(req.url)
+    out["reasons"].extend(sus["reasons"])
+    if sus["score"]:
+        out["reason_codes"].append("SUSPICIOUS_URL")
+    out["level_times"]["l4_rules"] = round(time.time() - t4, 3)
+    out["level_times"]["l05_uci_features"] = 0.0
+
+    brand = out["brand"]
+    official = out["official_domain"]
+    mismatch = bool(brand and official and not hostname_matches(
+        host, [d.strip() for d in official.split(",") if d.strip()]))
+    linked = _credential_brand_link(ds, out.get("visual_evidence"))
+    out["credential_brand_linked"] = linked
+    if out["brand_unconfirmed"]:
+        out["brand"] = out["official_domain"] = None
+        add_reason("BRAND_UNCONFIRMED", "视觉证据不足，无法确认品牌；请人工核对网址，勿据此认定安全")
+        detail = out.get("visual_evidence", {}).get("status")
+        if detail and detail != "BRAND_UNCONFIRMED":
+            out["reason_codes"].append(detail)
+    elif mismatch:
+        add_reason("BRAND_DOMAIN_MISMATCH", f"当前域名 {host} 与品牌 {brand} 正规域名不一致")
+        if credential_observed and linked:
+            out["decision"] = "block"
+            add_reason("THREE_CONDITION_MATCH", "确认视觉品牌匹配、域名不一致且页面存在密码输入框")
+        elif credential_observed:
+            add_reason("CREDENTIAL_BRAND_UNLINKED", "检测到品牌及密码框，但尚未确认两者属于同一登录表单")
+        else:
+            add_reason("INSUFFICIENT_CREDENTIAL_EVIDENCE", "未确认密码凭据索取，需人工复核")
+    elif (credential_observed or external_action) and sus["score"] >= 2:
+        add_reason("REVIEW_REQUIRED", "存在页面风险信号且网址可疑，需人工复核")
+    else:
+        out["decision"] = "allow"
+        add_reason("NO_RELIABLE_PHISHING_SIGNAL", "本次完整检测未发现可靠钓鱼信号")
+    return finish()
 
 
 if __name__ == "__main__":

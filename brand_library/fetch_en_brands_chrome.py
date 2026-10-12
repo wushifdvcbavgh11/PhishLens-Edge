@@ -8,7 +8,7 @@ import os
 import time
 from pathlib import Path
 
-ROOT = Path("C:/Users/wushi/.qianfan/workspace/sessions/458fc032984144e19e0b2a360d5a5c27/2026-09-28/new-chat/phishlens-edge/brand_library")
+ROOT = Path(__file__).resolve().parent
 LOGO_DIR = ROOT / "logos"
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 

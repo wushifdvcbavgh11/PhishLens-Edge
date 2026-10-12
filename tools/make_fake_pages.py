@@ -1,15 +1,19 @@
 """T8 - build 3 local Chinese fake login pages (fully offline).
 
-Each page: embeds a real brand logo (base64), fake title, password input,
-form action pointing to a fake domain, styled like a genuine login page.
-Then screenshot with headless Chrome (same throwaway profile approach)
+Each page: embeds a real brand logo (base64), a clearly marked demo title,
+and password input. Forms never submit: local action, no named input fields,
+an inline submit guard and CSP form-action 'none' are independent safeguards.
+Use --html-only to generate without launching a browser. Otherwise screenshot
+with headless Chrome (same throwaway profile approach)
 -> testset/fake/fake_alipay.png / fake_wechat.png / fake_icbc.png
 """
 from __future__ import annotations
 
 import base64
+import argparse
 import json
 import os
+import re
 import tempfile
 import time
 from pathlib import Path
@@ -18,11 +22,66 @@ ROOT = Path(__file__).resolve().parents[1]
 FAKE_DIR = ROOT / "testset" / "fake"
 FAKE_DIR.mkdir(parents=True, exist_ok=True)
 
-BRANDS = json.load(open(ROOT / "brand_library" / "brands.json", encoding="utf-8"))
+BRANDS = json.loads((ROOT / "brand_library" / "brands.json").read_text(encoding="utf-8"))
+
+
+def local_demo_html(html: str) -> str:
+    """Make the checked-in demos and future generated pages non-submitting."""
+    def local_form(match):
+        tag = re.sub(r'''\s(?:action|method|autocomplete)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)''',
+                     "", match.group(0), flags=re.I)
+        return tag[:-1] + ' action="#" method="post" autocomplete="off">'
+
+    html = re.sub(r"<form\b[^>]*>", local_form, html, flags=re.I)
+    # No successful form controls even if scripting/CSP is unavailable.
+    html = re.sub(r"<input\b[^>]*>", lambda match: re.sub(
+        r'''\s(?:name|autocomplete)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)''',
+        "", match.group(0), flags=re.I)[:-1] + ' autocomplete="off">', html, flags=re.I)
+    html = re.sub(r'''\sformaction\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)''', "", html, flags=re.I)
+    html = re.sub(r'(<button\b[^>]*type="submit"[^>]*>).*?(</button>)',
+                  r'\1演示提交（不会登录）\2', html, flags=re.I | re.S)
+    if 'id="local-demo-banner"' in html:
+        return html
+    html = re.sub(r"<title>", "<title>【本地演示】", html, count=1, flags=re.I)
+    safeguards = """
+<meta http-equiv="Content-Security-Policy" content="form-action 'none'; base-uri 'none'; object-src 'none'">
+<style>
+  body { padding-top:110px !important; }
+  .local-demo-banner { position:fixed; top:0; left:0; right:0; z-index:2147483646;
+    padding:12px 18px; background:#fff3cd; color:#4f3200; border-bottom:3px solid #bf7000;
+    text-align:center; font:700 16px/1.6 'Microsoft YaHei',sans-serif; }
+  .local-demo-banner small { display:block; font-size:13px; font-weight:400; }
+  .local-demo-status { margin-top:16px; padding:12px; border:2px solid #bf7000;
+    color:#4f3200; background:#fff3cd; font:14px/1.6 'Microsoft YaHei',sans-serif; }
+</style>
+<script id="local-demo-submit-guard">
+  'use strict';
+  document.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var status = document.getElementById('local-demo-status');
+    status.hidden = false;
+    status.textContent = '本地演示：已阻止提交，没有发送账号、密码或验证码。请勿使用真实信息。';
+  }, true);
+</script>
+"""
+    html = re.sub(r"</head>", safeguards + "</head>", html, count=1, flags=re.I)
+    banner = """
+<aside id="local-demo-banner" class="local-demo-banner" role="note">
+  本地演示 / 请勿输入真实账号密码
+  <small>仅用于防御检测演示，不提供登录服务；表单不会发送输入内容。</small>
+</aside>
+<noscript><p class="local-demo-status">本地演示：脚本未运行，浏览器提交策略仍禁止表单发送。</p></noscript>
+"""
+    html = re.sub(r"(<body\b[^>]*>)", lambda match: match.group(0) + banner, html, count=1, flags=re.I)
+    return re.sub(r"</form>", '</form><p id="local-demo-status" class="local-demo-status" role="status" hidden></p>',
+                  html, count=1, flags=re.I)
 
 
 def b64(path: str) -> str:
-    return base64.b64encode(Path(path).read_bytes()).decode()
+    logo = Path(path)
+    if not logo.is_absolute():
+        logo = ROOT / "brand_library" / logo
+    return base64.b64encode(logo.read_bytes()).decode()
 
 
 def logo_of(brand_id: str):
@@ -67,7 +126,7 @@ def render(fname: str, brand_id: str, fake_domain: str, page_title: str,
     <p>欢迎登录{service}统一安全中心</p>
   </div>
   <div class="tip">系统检测到您的账号存在异常登录风险，请立即验证身份，逾期将冻结账号</div>
-  <form action="https://{fake_domain}/login" method="post" autocomplete="off">
+  <form action="#" method="post" autocomplete="off">
     <label for="u">账号</label>
     <input id="u" name="account" type="text" placeholder="请输入手机号/邮箱">
     <label for="p">登录密码</label>
@@ -86,7 +145,7 @@ def render(fname: str, brand_id: str, fake_domain: str, page_title: str,
 </html>
 """
     out = FAKE_DIR / fname
-    out.write_text(html, encoding="utf-8")
+    out.write_text(local_demo_html(html), encoding="utf-8")
     return out
 
 
@@ -116,6 +175,9 @@ def screenshot(url: str, out_png: Path):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--html-only", action="store_true", help="Only write local demo HTML; do not launch a browser.")
+    args = parser.parse_args()
     pages = [
         # (fname_html, brand_id, fake_domain, page_title, heading, service, footer, accent)
         ("fake_alipay.html", "alipay", "alipay-secure-login.top",
@@ -130,6 +192,8 @@ def main():
         p = render(h, bid, dom, title, heading, svc, foot, accent)
         htmls.append((p, dom))
         print("  wrote", p.name)
+    if args.html_only:
+        return
     # screenshot via file://
     for (h, bid, dom, title, heading, svc, foot, accent), (p, _) in zip(pages, htmls):
         url = p.as_uri()

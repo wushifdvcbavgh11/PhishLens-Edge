@@ -1,0 +1,8 @@
+-r server/requirements.txt
+numpy>=1.24,<2
+Pillow>=10
+requests>=2.31
+# Used by the offline FastAPI regression tests.
+httpx>=0.27
+
+# Install the platform-specific vision stack separately; see README.md.

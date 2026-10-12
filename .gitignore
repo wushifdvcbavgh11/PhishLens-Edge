@@ -227,3 +227,39 @@ testset/
 testset/**/*.png
 .dumate/
 .tmp/
+datasets/
+.maintenance/
+
+# Local copies, runtime state and generated model data
+* - 副本/
+/kali_phishing/
+/runtime/
+/analyze_test_response.json
+/guard_status.json
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.pth
+*.pth.tar
+*.onnx
+*.safetensors
+/brand_library/siamese/
+/brand_library/*report*.json
+/brand_library/_preview_all.png
+/model/*.joblib
+
+# Keep only curated UI previews in docs/ui/
+/docs/ui-refresh/
+/docs/ui-oval/
+/docs/ui-dot/
+/docs/e2e_*.png
+
+# Publish the offline, non-submitting demo fixtures, not collected datasets
+!testset/
+testset/*
+!testset/fake/
+testset/fake/*
+!testset/fake/*.html

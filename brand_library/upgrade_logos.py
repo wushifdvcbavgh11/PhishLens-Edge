@@ -22,7 +22,7 @@ from PIL import Image
 
 urllib3 = None
 
-ROOT = Path("C:/Users/wushi/.qianfan/workspace/sessions/458fc032984144e19e0b2a360d5a5c27/2026-09-28/new-chat/phishlens-edge/brand_library")
+ROOT = Path(__file__).resolve().parent
 LOGO_DIR = ROOT / "logos"
 
 HEADERS = {
@@ -54,6 +54,15 @@ COMMONS_FILES = {
     "taobao":    ["Taobao_logo.svg", "Taobao logo.svg"],
     "jd":        ["JD.com_logo.svg", "JD_logo.svg", "JD.com logo.svg"],
     "pinduoduo": ["Pinduoduo_logo.svg", "Pinduoduo logo.svg"],
+    "psbc":      ["Postal_Savings_Bank_of_China_logo.svg", "Postal Savings Bank of China logo.svg"],
+    "pingan":    ["Ping_An_Bank_logo.svg", "Ping An Bank logo.svg"],
+    "citic":     ["China_CITIC_Bank_logo.svg", "CITIC_Bank_logo.svg", "China CITIC Bank logo.svg"],
+    "spdb":      ["Shanghai_Pudong_Development_Bank_logo.svg", "SPDB_logo.svg", "Shanghai Pudong Development Bank logo.svg"],
+    "tsinghua":  ["Tsinghua_University_logo.svg", "Tsinghua University logo.svg"],
+    "pku":       ["Peking_University_logo.svg", "Peking University logo.svg"],
+    "fudan":     ["Fudan_University_logo.svg", "Fudan University logo.svg"],
+    "zju":       ["Zhejiang_University_logo.svg", "Zhejiang University logo.svg"],
+    "sjtu":      ["Shanghai_Jiao_Tong_University_logo.svg", "Shanghai_Jiao_Tong_University_seal.svg", "Shanghai Jiao Tong University logo.svg"],
 }
 
 # search terms for Commons API fallback
@@ -68,6 +77,12 @@ COMMONS_TERMS = {
     "qiye163": "NetEase Mail", "alimail": "Alibaba Mail",
     "dingtalk": "DingTalk", "feishu": "Feishu LARK", "microsoft365": "Microsoft 365",
     "taobao": "Taobao", "jd": "JD.com", "pinduoduo": "Pinduoduo",
+    "psbc": "Postal Savings Bank of China logo",
+    "pingan": "Ping An Bank logo", "citic": "China CITIC Bank logo",
+    "spdb": "Shanghai Pudong Development Bank logo",
+    "tsinghua": "Tsinghua University logo", "pku": "Peking University logo",
+    "fudan": "Fudan University logo", "zju": "Zhejiang University logo",
+    "sjtu": "Shanghai Jiao Tong University logo",
 }
 
 HOMES = {
@@ -83,6 +98,15 @@ HOMES = {
     "feishu": "https://www.feishu.cn/", "microsoft365": "https://www.office.com/",
     "taobao": "https://www.taobao.com/", "jd": "https://www.jd.com/",
     "pinduoduo": "https://www.pinduoduo.com/",
+    "psbc": "https://www.psbc.com/cn/",
+    "pingan": "https://bank.pingan.com/",
+    "citic": "https://www.citicbank.com/",
+    "spdb": "https://www.spdb.com.cn/",
+    "tsinghua": "https://www.tsinghua.edu.cn/",
+    "pku": "https://www.pku.edu.cn/",
+    "fudan": "https://www.fudan.edu.cn/",
+    "zju": "https://www.zju.edu.cn/",
+    "sjtu": "https://www.sjtu.edu.cn/",
 }
 
 

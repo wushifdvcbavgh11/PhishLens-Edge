@@ -4,9 +4,10 @@ import json
 import sys
 import time
 import urllib.request
+from pathlib import Path
 
 SERVER = "http://127.0.0.1:8765"
-BASE = r"C:/Users/wushi/.qianfan/workspace/sessions/458fc032984144e19e0b2a360d5a5c27/2026-09-28/new-chat/phishlens-edge/third_party/PhishIntention/datasets/test_sites"
+BASE = Path(__file__).resolve().parents[1] / "third_party/PhishIntention/datasets/test_sites"
 
 CASES = [
     {

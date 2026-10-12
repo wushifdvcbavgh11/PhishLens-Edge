@@ -1,0 +1,590 @@
+{
+  "dataset": "UCI Phishing Websites (id=327)",
+  "n_samples": 11055,
+  "n_features": 30,
+  "n_phishing": 6157,
+  "n_legitimate": 4898,
+  "cv_folds": 5,
+  "random_state": 42,
+  "best_model": "HistGradientBoosting",
+  "models": {
+    "RandomForest": {
+      "accuracy_mean": 0.9707824513794663,
+      "accuracy_std": 0.002152035685820039,
+      "precision_mean": 0.9676716115818692,
+      "recall_mean": 0.9803475160095794,
+      "f1_mean": 0.9739477059233138,
+      "auc_mean": 0.9958132500667041,
+      "folds": [
+        {
+          "accuracy": 0.9701492537313433,
+          "precision": 0.9619349722442506,
+          "recall": 0.9853777416734363,
+          "f1": 0.9735152487961477,
+          "auc": 0.995935360334223
+        },
+        {
+          "accuracy": 0.9742198100407056,
+          "precision": 0.9780130293159609,
+          "recall": 0.9756295694557271,
+          "f1": 0.9768198454656364,
+          "auc": 0.9970071619224457
+        },
+        {
+          "accuracy": 0.9719583898688376,
+          "precision": 0.9702333065164923,
+          "recall": 0.9796913078797725,
+          "f1": 0.9749393694421988,
+          "auc": 0.9962702465226546
+        },
+        {
+          "accuracy": 0.9678878335594754,
+          "precision": 0.9647718174539631,
+          "recall": 0.9780844155844156,
+          "f1": 0.9713825070536074,
+          "auc": 0.995694486820636
+        },
+        {
+          "accuracy": 0.9696969696969697,
+          "precision": 0.9634049323786794,
+          "recall": 0.9829545454545454,
+          "f1": 0.9730815588589795,
+          "auc": 0.9941589947335606
+        }
+      ]
+    },
+    "XGBoost": {
+      "accuracy_mean": 0.9692446856625961,
+      "accuracy_std": 0.0012792524309118846,
+      "precision_mean": 0.9671394967866697,
+      "recall_mean": 0.9780738656144831,
+      "f1_mean": 0.9725465955586825,
+      "auc_mean": 0.9963514161485734,
+      "folds": [
+        {
+          "accuracy": 0.9692446856625961,
+          "precision": 0.9611419508326725,
+          "recall": 0.9845653939886271,
+          "f1": 0.9727126805778491,
+          "auc": 0.9958346457998309
+        },
+        {
+          "accuracy": 0.9701492537313433,
+          "precision": 0.9770679770679771,
+          "recall": 0.9691307879772543,
+          "f1": 0.9730831973898858,
+          "auc": 0.9970457069911636
+        },
+        {
+          "accuracy": 0.9710538218000905,
+          "precision": 0.967173738991193,
+          "recall": 0.9813160032493907,
+          "f1": 0.9741935483870968,
+          "auc": 0.9963883685074354
+        },
+        {
+          "accuracy": 0.9674355495251018,
+          "precision": 0.9625199362041468,
+          "recall": 0.9797077922077922,
+          "f1": 0.9710378117457763,
+          "auc": 0.9966226635978934
+        },
+        {
+          "accuracy": 0.968340117593849,
+          "precision": 0.9677938808373591,
+          "recall": 0.9756493506493507,
+          "f1": 0.9717057396928052,
+          "auc": 0.9958656958465436
+        }
+      ]
+    },
+    "LogisticRegression": {
+      "accuracy_mean": 0.9279059249208503,
+      "accuracy_std": 0.005161589368679165,
+      "precision_mean": 0.9264470892116249,
+      "recall_mean": 0.9457531096036377,
+      "f1_mean": 0.9359679795335417,
+      "auc_mean": 0.9787029430872257,
+      "folds": [
+        {
+          "accuracy": 0.9235639981908639,
+          "precision": 0.919431279620853,
+          "recall": 0.9455727051177905,
+          "f1": 0.9323187825390469,
+          "auc": 0.9770064158888576
+        },
+        {
+          "accuracy": 0.9326096788783356,
+          "precision": 0.9377022653721683,
+          "recall": 0.9415109666937449,
+          "f1": 0.9396027563842724,
+          "auc": 0.981217361030521
+        },
+        {
+          "accuracy": 0.9280868385345997,
+          "precision": 0.9213836477987422,
+          "recall": 0.9520714865962632,
+          "f1": 0.9364762285257691,
+          "auc": 0.9817893201147233
+        },
+        {
+          "accuracy": 0.9344188150158299,
+          "precision": 0.9372485921158488,
+          "recall": 0.9456168831168831,
+          "f1": 0.9414141414141414,
+          "auc": 0.9781229687064723
+        },
+        {
+          "accuracy": 0.9208502939846224,
+          "precision": 0.9164696611505122,
+          "recall": 0.9439935064935064,
+          "f1": 0.9300279888044782,
+          "auc": 0.9753786496955547
+        }
+      ]
+    },
+    "HistGradientBoosting": {
+      "accuracy_mean": 0.9723202170963365,
+      "accuracy_std": 0.0014129804931536172,
+      "precision_mean": 0.9686535918270011,
+      "recall_mean": 0.9821338896684144,
+      "f1_mean": 0.9753256106134852,
+      "auc_mean": 0.996923088968817,
+      "folds": [
+        {
+          "accuracy": 0.9715061058344641,
+          "precision": 0.9634920634920635,
+          "recall": 0.9861900893582454,
+          "f1": 0.9747089522280209,
+          "auc": 0.9961769923241434
+        },
+        {
+          "accuracy": 0.9742198100407056,
+          "precision": 0.9787928221859706,
+          "recall": 0.974817221770918,
+          "f1": 0.9768009768009768,
+          "auc": 0.9979359737396177
+        },
+        {
+          "accuracy": 0.9724106739032112,
+          "precision": 0.9672523961661342,
+          "recall": 0.983753046303818,
+          "f1": 0.9754329440193314,
+          "auc": 0.9969296573219051
+        },
+        {
+          "accuracy": 0.9701492537313433,
+          "precision": 0.9664,
+          "recall": 0.9805194805194806,
+          "f1": 0.9734085414987913,
+          "auc": 0.9972851140177492
+        },
+        {
+          "accuracy": 0.9733152419719584,
+          "precision": 0.9673306772908367,
+          "recall": 0.9853896103896104,
+          "f1": 0.9762766385203056,
+          "auc": 0.9962877074406696
+        }
+      ]
+    }
+  },
+  "feature_importance_best_model": [
+    {
+      "feature": "having_IP_Address",
+      "importance": 0.0
+    },
+    {
+      "feature": "URL_Length",
+      "importance": 0.0
+    },
+    {
+      "feature": "Shortining_Service",
+      "importance": 0.0
+    },
+    {
+      "feature": "having_At_Symbol",
+      "importance": 0.0
+    },
+    {
+      "feature": "double_slash_redirecting",
+      "importance": 0.0
+    },
+    {
+      "feature": "Prefix_Suffix",
+      "importance": 0.0
+    },
+    {
+      "feature": "having_Sub_Domain",
+      "importance": 0.0
+    },
+    {
+      "feature": "SSLfinal_State",
+      "importance": 0.0
+    },
+    {
+      "feature": "Domain_registeration_length",
+      "importance": 0.0
+    },
+    {
+      "feature": "Favicon",
+      "importance": 0.0
+    },
+    {
+      "feature": "port",
+      "importance": 0.0
+    },
+    {
+      "feature": "HTTPS_token",
+      "importance": 0.0
+    },
+    {
+      "feature": "Request_URL",
+      "importance": 0.0
+    },
+    {
+      "feature": "URL_of_Anchor",
+      "importance": 0.0
+    },
+    {
+      "feature": "Links_in_tags",
+      "importance": 0.0
+    },
+    {
+      "feature": "SFH",
+      "importance": 0.0
+    },
+    {
+      "feature": "Submitting_to_email",
+      "importance": 0.0
+    },
+    {
+      "feature": "Abnormal_URL",
+      "importance": 0.0
+    },
+    {
+      "feature": "Redirect",
+      "importance": 0.0
+    },
+    {
+      "feature": "on_mouseover",
+      "importance": 0.0
+    },
+    {
+      "feature": "RightClick",
+      "importance": 0.0
+    },
+    {
+      "feature": "popUpWidnow",
+      "importance": 0.0
+    },
+    {
+      "feature": "Iframe",
+      "importance": 0.0
+    },
+    {
+      "feature": "age_of_domain",
+      "importance": 0.0
+    },
+    {
+      "feature": "DNSRecord",
+      "importance": 0.0
+    },
+    {
+      "feature": "web_traffic",
+      "importance": 0.0
+    },
+    {
+      "feature": "Page_Rank",
+      "importance": 0.0
+    },
+    {
+      "feature": "Google_Index",
+      "importance": 0.0
+    },
+    {
+      "feature": "Links_pointing_to_page",
+      "importance": 0.0
+    },
+    {
+      "feature": "Statistical_report",
+      "importance": 0.0
+    }
+  ],
+  "feature_importance_random_forest": [
+    {
+      "feature": "SSLfinal_State",
+      "importance": 0.311305
+    },
+    {
+      "feature": "URL_of_Anchor",
+      "importance": 0.259431
+    },
+    {
+      "feature": "web_traffic",
+      "importance": 0.072074
+    },
+    {
+      "feature": "having_Sub_Domain",
+      "importance": 0.062033
+    },
+    {
+      "feature": "Links_in_tags",
+      "importance": 0.042564
+    },
+    {
+      "feature": "Prefix_Suffix",
+      "importance": 0.041475
+    },
+    {
+      "feature": "SFH",
+      "importance": 0.020423
+    },
+    {
+      "feature": "Request_URL",
+      "importance": 0.020252
+    },
+    {
+      "feature": "Links_pointing_to_page",
+      "importance": 0.019581
+    },
+    {
+      "feature": "Domain_registeration_length",
+      "importance": 0.017201
+    },
+    {
+      "feature": "age_of_domain",
+      "importance": 0.015906
+    },
+    {
+      "feature": "having_IP_Address",
+      "importance": 0.013175
+    },
+    {
+      "feature": "Google_Index",
+      "importance": 0.012896
+    },
+    {
+      "feature": "DNSRecord",
+      "importance": 0.012145
+    },
+    {
+      "feature": "Page_Rank",
+      "importance": 0.011901
+    },
+    {
+      "feature": "URL_Length",
+      "importance": 0.008043
+    },
+    {
+      "feature": "HTTPS_token",
+      "importance": 0.006215
+    },
+    {
+      "feature": "Shortining_Service",
+      "importance": 0.005507
+    },
+    {
+      "feature": "Redirect",
+      "importance": 0.005505
+    },
+    {
+      "feature": "having_At_Symbol",
+      "importance": 0.005379
+    },
+    {
+      "feature": "Submitting_to_email",
+      "importance": 0.005377
+    },
+    {
+      "feature": "Statistical_report",
+      "importance": 0.004931
+    },
+    {
+      "feature": "popUpWidnow",
+      "importance": 0.004907
+    },
+    {
+      "feature": "Favicon",
+      "importance": 0.004289
+    },
+    {
+      "feature": "Abnormal_URL",
+      "importance": 0.004211
+    },
+    {
+      "feature": "double_slash_redirecting",
+      "importance": 0.003541
+    },
+    {
+      "feature": "on_mouseover",
+      "importance": 0.003404
+    },
+    {
+      "feature": "port",
+      "importance": 0.00244
+    },
+    {
+      "feature": "Iframe",
+      "importance": 0.002424
+    },
+    {
+      "feature": "RightClick",
+      "importance": 0.001464
+    }
+  ],
+  "feature_names": [
+    "having_IP_Address",
+    "URL_Length",
+    "Shortining_Service",
+    "having_At_Symbol",
+    "double_slash_redirecting",
+    "Prefix_Suffix",
+    "having_Sub_Domain",
+    "SSLfinal_State",
+    "Domain_registeration_length",
+    "Favicon",
+    "port",
+    "HTTPS_token",
+    "Request_URL",
+    "URL_of_Anchor",
+    "Links_in_tags",
+    "SFH",
+    "Submitting_to_email",
+    "Abnormal_URL",
+    "Redirect",
+    "on_mouseover",
+    "RightClick",
+    "popUpWidnow",
+    "Iframe",
+    "age_of_domain",
+    "DNSRecord",
+    "web_traffic",
+    "Page_Rank",
+    "Google_Index",
+    "Links_pointing_to_page",
+    "Statistical_report"
+  ],
+  "permutation_importance": [
+    {
+      "feature": "URL_of_Anchor",
+      "importance": 0.181979
+    },
+    {
+      "feature": "SSLfinal_State",
+      "importance": 0.115092
+    },
+    {
+      "feature": "web_traffic",
+      "importance": 0.031666
+    },
+    {
+      "feature": "having_Sub_Domain",
+      "importance": 0.026445
+    },
+    {
+      "feature": "Prefix_Suffix",
+      "importance": 0.025605
+    },
+    {
+      "feature": "Links_in_tags",
+      "importance": 0.021855
+    },
+    {
+      "feature": "having_IP_Address",
+      "importance": 0.017282
+    },
+    {
+      "feature": "Links_pointing_to_page",
+      "importance": 0.015947
+    },
+    {
+      "feature": "DNSRecord",
+      "importance": 0.011923
+    },
+    {
+      "feature": "age_of_domain",
+      "importance": 0.011872
+    },
+    {
+      "feature": "Google_Index",
+      "importance": 0.011289
+    },
+    {
+      "feature": "SFH",
+      "importance": 0.010627
+    },
+    {
+      "feature": "Request_URL",
+      "importance": 0.008471
+    },
+    {
+      "feature": "Domain_registeration_length",
+      "importance": 0.007788
+    },
+    {
+      "feature": "HTTPS_token",
+      "importance": 0.005268
+    },
+    {
+      "feature": "URL_Length",
+      "importance": 0.004709
+    },
+    {
+      "feature": "popUpWidnow",
+      "importance": 0.004171
+    },
+    {
+      "feature": "Shortining_Service",
+      "importance": 0.00395
+    },
+    {
+      "feature": "double_slash_redirecting",
+      "importance": 0.003564
+    },
+    {
+      "feature": "Page_Rank",
+      "importance": 0.003523
+    },
+    {
+      "feature": "Favicon",
+      "importance": 0.003406
+    },
+    {
+      "feature": "Redirect",
+      "importance": 0.002842
+    },
+    {
+      "feature": "Submitting_to_email",
+      "importance": 0.002687
+    },
+    {
+      "feature": "Statistical_report",
+      "importance": 0.002552
+    },
+    {
+      "feature": "Abnormal_URL",
+      "importance": 0.002271
+    },
+    {
+      "feature": "having_At_Symbol",
+      "importance": 0.002136
+    },
+    {
+      "feature": "port",
+      "importance": 0.001238
+    },
+    {
+      "feature": "on_mouseover",
+      "importance": 0.001233
+    },
+    {
+      "feature": "RightClick",
+      "importance": 0.000529
+    },
+    {
+      "feature": "Iframe",
+      "importance": 0.000238
+    }
+  ]
+}

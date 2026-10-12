@@ -3,7 +3,7 @@ from pathlib import Path
 from PIL import Image
 import os
 
-ROOT = Path("C:/Users/wushi/.qianfan/workspace/sessions/458fc032984144e19e0b2a360d5a5c27/2026-09-28/new-chat/phishlens-edge/brand_library/logos")
+ROOT = Path(__file__).resolve().parent / "logos"
 for d in sorted(ROOT.iterdir()):
     if not d.is_dir():
         continue

@@ -1,134 +1,111 @@
-# PhishLens Edge — On-Device Visual Phishing Defense
+# PhishLens Edge
 
-**PhishLens Edge** is a local-first phishing detection system for the workplace.
-A browser extension captures page screenshots and DOM signals; an on-device
-Python service runs a five-stage funnel of cheap-to-expensive checks; the
-decision is `block` / `allow` / `uncertain` with an explainable warning overlay.
-**Screenshots never leave the machine.**
+在本机分析网页截图、品牌标志、域名与登录表单的反钓鱼研究原型。浏览器扩展连接本地 Python 服务，给出“未发现明确风险 / 未确认 / 疑似仿冒”及检测依据。
 
-> Visual phishing detection without cloud APIs. Built for the
-> [ASUS UGen AI League](https://contest.bhuntr.com/tw/39jg9vimiynrhlksze/home/),
-> running today on host CPU and targeting the ASUS UGen300 (Hailo-10H) edge
-> accelerator: 40 TOPS (INT4), 8 GB LPDDR5, ~2.5 W, USB-C.
+**截图仅发送到本机服务，不上传云端。浏览器扩展版本：0.2.4。**
 
----
+## 界面与功能
 
-## How it decides
+- 默认显示 **28px 小圆点**，颜色表示检测状态；点击展开胶囊提示，点击盾牌或按 Esc 收起。
+- 疑似仿冒页面显示红底白卡警告，列出品牌、当前域名、正规域名和判定依据。
+- 30 秒请求时限、有限自动重试、标签切换恢复、页面变化后重新校验。
+- 可选桌面悬浮窗和托盘入口；截图本身不能核实网址身份。
+- 默认 CPU 推理，使用 PhishIntention 检测器与 OCR 辅助 Siamese 特征库。
 
-A page is **blocked** only when **all three** conditions hold (the shared
-principle of Phishpedia / PhishIntention / PhishVLM):
-
-1. the page **impersonates a known brand** (logo visually matches the local brand library), **and**
-2. the **current domain is not** one of that brand's official domains, **and**
-3. the page **asks for credentials** (password input / login form).
-
-Any missing condition → `allow` or `uncertain` (explainable, no false-block pressure).
-
-## Architecture
-
-![PhishLens Edge architecture](docs/architecture.png)
-
-| Level | Check | Cost (host CPU, hot) |
-|---|---|---|
-| **L0** | domain whitelist + LRU result cache | < 1 ms · short-circuits ~most benign pages |
-| **L1** | logo / structure detection (Faster R-CNN, AWL) | ~1.6 s |
-| **L2** | brand matching vs. local library (OCR-aided Siamese + MobileNet for CN brands) | ~0.7 s |
-| **L3** | credential-asking check from DOM signals | ~1 ms |
-| **L4** | VLM review — uncertain cases only (local Qwen2-VL-2B hook; rule-based fallback ships) | 1–3 s |
-
-Cheap checks run first; expensive models only see the few hard cases.
-
-### Repository layout
-
-```
-browser-extension/   Manifest V3 extension: screenshots, DOM signals, warning overlay
-server/              FastAPI service @127.0.0.1:8765, /analyze endpoint, L0–L4 funnel
-brand_library/       30 protected brands (22 CN + 8 EN) + feature extractor
-tools/               testset capture, fake-page builder, offline evaluation
-docs/                per-task reproduction & evaluation reports
-third_party/         (not published) Phishpedia / PhishIntention / PhishVLM checkouts
-testset/             (not published) 50+50+3 evaluation screenshots
-```
-
-## Quick start
-
-Prerequisites: Python 3.11 (the vision stack wheels were built for cp311),
-Google Chrome or Edge.
-
-```bash
-# 1. Virtualenv + deps (vision stack: torch 2.1.0+cpu, torchvision, detectron2 0.6)
-python -m venv .venv
-.venv/Scripts/pip install -r server/requirements.txt
-
-# 2. Third-party model weights (Phishpedia/PhishIntention checkouts & weights,
-#    detectron2/torch CPU wheels). The community wheels used in this project:
-#    torch-2.1.0+cpu / torchvision-0.16.0+cpu (CPU builds) and
-#    detectron2-0.6+18f6958pt2.1.0cpu (Windows amd64 wheel by MiroPsota).
-#    Clone lindsey98/Phishpedia + lindsey98/PhishIntention next to this repo and
-#    place their weights under detection_models/ as described in docs/T2/T3.
-
-# 3. Start the local service
-.venv/Scripts/python server/app.py        # FastAPI @ http://127.0.0.1:8765
-
-# 4. Load the extension
-#    chrome://extensions → Developer mode → Load unpacked → browser-extension/
-
-# 5. (Optional) rebuild the brand library
-.venv/Scripts/python brand_library/build_brand_library.py
-.venv/Scripts/python brand_library/extract_features.py
-```
-
-Try it end-to-end: start the service, open a self-built fake page
-(`python tools/make_fake_pages.py` writes a local `fake_alipay` login page),
-focus the password box — the extension takes a second screenshot, the funnel
-returns `block`, and the warning overlay explains the spoofed brand, current
-vs. official domain, with **Back** and **I trust this page, continue** buttons.
-
-## Preliminary results
-
-Evaluated on **50 OpenPhish phishing screenshots + 50 benign login pages + 3
-self-built Chinese fake pages** (host CPU, Windows, no GPU).
-
-| Metric | Result |
+| 收起状态 | 展开状态 |
 |---|---|
-| Phishing recall (brand confirmed, blocked) | 13/50 = **26%** |
-| Benign false-positive rate | **0/50 = 0%** |
-| Self-built fake-page interception | **3/3 = 100%** |
-| Brand recognition accuracy (when a brand fired) | **13/13 = 100%** |
-| End-to-end latency (hot, per sample) | **2.144 s** |
-| Cold start (models + 3069-logo feature cache) | ~789 s, excluded from stats |
+| ![小圆点](docs/ui/collapsed.png) | ![胶囊提示](docs/ui/expanded.png) |
 
-Funnel split: 95/103 samples take the visual path; 8 benign samples
-short-circuit at L0. Every detected phishing page carried the genuine brand
-logo from the reference library.
+![疑似仿冒警告](docs/ui/warning.png)
 
-**Honest limitation:** the L1 logo detector only fires on clean logo regions;
-37/50 OpenPhish crawls have tiny, occluded, or degraded logos, so the visual
-funnel misses them (the 26% is a baseline, not the final number). A local
-Qwen2-VL-2B L4 review and an improved detector are the final-round levers —
-see `docs/T9-evaluation.md` for the full breakdown.
+界面预览使用本地模拟页面和模拟结果，不是检测准确率证明。
 
-## Privacy & ethics
+## 目录
 
-- Screenshots are processed **in RAM only** — never written to disk, never uploaded.
-- The event log records URL, brand and decision only (SIEM-ready, JSON Lines).
-- Phishing URLs are collected from OpenPhish and visited only in an isolated
-  sandboxed browser; self-built fake pages are clearly marked and served
-  locally for testing only; no directly usable phishing page source is published.
-- Brand logos/trademarks belong to their respective owners and are used here
-  solely for research and evaluation.
+```text
+browser-extension/   Edge Manifest V3 扩展
+server/              FastAPI 本地检测服务
+brand_library/       品牌元数据、Logo 素材及特征生成工具
+testset/fake/        无外部请求、禁止提交的本地演示页面
+tests/               Python 与 JavaScript 离线回归
+tools/               启停、环境检查、模型准备、评估与便携包工具
+docs/                复现记录、历史评估与界面预览
+model/               已停用 UCI 分类器的历史指标与特征说明
+phishlens_guard.py   桌面悬浮窗
+tray_guard.py        托盘守护入口
+```
 
-## License & third-party notices
+`.venv/`、`third_party/`、数据集、模型权重、生成的 Siamese 索引、日志、备份和便携运行环境仅保留本地，不提交 Git。便携包不包含在源码仓库中。
 
-- This project: **Apache-2.0** (see [LICENSE](LICENSE)).
-- Third-party components: see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES.md).
+## 已配置的 Windows 电脑
 
-## Docs
+1. 双击根目录的 **启动项目.bat**，等待本地服务就绪。
+2. 在 Edge 打开 `edge://extensions/`，开启开发人员模式，加载项目中的 `browser-extension` 文件夹。已有扩展则点击“重新加载”。
+3. 打开 `http://127.0.0.1:8001/fake_alipay.html`。更新扩展后刷新已打开的网页。
+4. 用完双击 **停止项目.bat**。可选悬浮窗从 **启动悬浮窗.bat** 启动，退出时关闭悬浮窗。
 
-- `docs/T2-phishpedia-repro.md` — Phishpedia reproduction on CPU
-- `docs/T3-phishintention-repro.md` — PhishIntention reproduction (brand-matching logic)
-- `docs/T4-phishvlm-repro.md` — PhishVLM review pipeline & why we replace its cloud API with a local VLM
-- `docs/T5T6-extension-and-service.md` — extension + FastAPI service
-- `docs/T7-brand-library.md` — brand library build
-- `docs/T8-testset.md` — testset collection
-- `docs/T9-evaluation.md` — full evaluation report
+服务位于 `http://127.0.0.1:8765`，状态接口为 `/health`。模型首次加载可能较慢；服务可访问不等于模型已就绪。运行日志位于 `.maintenance/runtime/`。
+
+## 从源码准备环境
+
+推荐 Windows x64、Python **3.11** 和 Microsoft Edge。基础依赖足以运行离线回归；完整视觉推理还需要视觉依赖和模型。
+
+```powershell
+git clone https://github.com/wushifdvcbavgh11/PhishLens-Edge.git
+cd PhishLens-Edge
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+完整视觉环境请结合 [PhishIntention 复现说明](docs/T3-phishintention-repro.md) 和 [依赖说明](docs/T16-setup-and-deps.md) 配置：
+
+```powershell
+git clone https://github.com/lindsey98/PhishIntention.git third_party/PhishIntention
+.\.venv\Scripts\python.exe tools/setup_vision.py
+.\.venv\Scripts\python.exe tools/download_weights.py
+.\.venv\Scripts\python.exe tools/build_brand_references.py
+.\.venv\Scripts\python.exe tools/check_env.py
+```
+
+`setup_vision.py` 优先使用本地 wheel；detectron2 的 Windows CPU wheel 需按复现说明准备。`download_weights.py` 下载约 1.6 GB 模型。模型和参考素材准备好后，`build_brand_references.py` 才能生成与本机文件哈希一致的 `brand_library/siamese/`。缺失或不一致时，服务不会把未完成检测当作通过。
+
+桌面入口的可选依赖：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-desktop.txt
+```
+
+完整视觉环境仍需在目标电脑单独验收。旧 `check_env.py` 的 UCI/MobileNet 检查涉及历史实验资产；当前浏览器决策不依赖 UCI 分类器。
+
+## 测试与本地演示
+
+安装 Node.js 后，从项目根目录执行：
+
+```powershell
+.\tools\run_reliability_checks.ps1
+```
+
+当前离线回归包括 **58 项 Python 检查、76 项 JavaScript 检查**，涵盖请求超时、重试、页面身份、一次放行、桌面结果、缓存、示例页面、小圆点展开与收起。测试使用模拟视觉结果，不代表真实模型准确率。
+
+`testset/fake/` 的 HTML 已内嵌素材并禁止提交。不要输入真实账号、密码或验证码。重新生成三种基本品牌演示页：
+
+```powershell
+.\.venv\Scripts\python.exe tools/make_fake_pages.py --html-only
+```
+
+## 检测边界
+
+视觉品牌、非官方域名和相关凭据表单证据同时满足规则时，系统才给出拦截结果。模型失败、信息不足或证据不确定时显示“未确认”；“未发现明确风险”不代表网站绝对安全。
+
+页面内确认只允许当前页面接下来一次敏感表单提交，30 秒后失效。页面提示与原生表单监听无法阻止所有网页脚本或网络请求。UCI 分类器因标签/特征编码尚未验证而停用；本地 VLM 与 Hailo 硬件加速仍属规划功能。
+
+历史评估存在样本重复及分布限制，不能视为当前版本独立准确率。详见 [品牌识别修订](docs/brand-recognition-20261013.md)、[开发集评估](docs/T9-evaluation.md) 和 [历史留出集评估](docs/T14-evaluation.md)。
+
+## 文档与授权
+
+- [扩展与服务](docs/T5T6-extension-and-service.md)
+- [品牌库](docs/T7-brand-library.md)
+- [内存截图处理](docs/T17-in-memory-processing.md)
+- [便携包构建工具](tools/build_portable.py)：从已配置的 Windows Python 3.11 环境打包到新目录；运行环境与模型不从 Git 下载。
+- [竞赛简报](PhishLens_Edge_Competition_Brief.pdf)：历史材料，当前行为以本 README 与代码为准。
+- 项目代码采用 [Apache-2.0](LICENSE)。第三方组件及品牌商标说明见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。
