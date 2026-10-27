@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>联合检测 · 并行试运行</h2>
+<p>URL 模型、视觉品牌和表单风险并列展示。联合建议不改变原有拦截行为。</p>
+<p>请在加载了 PhishLens 0.2.8 的浏览器中检测页面，再刷新此处；仅输入 URL 无法获得截图和表单证据。</p>
+<p class="text-muted">记录可能包含本地截图回放与替换域名的对照样本；显示官方网站网址不表示实际访问并检测了该网站。</p>
+<button id="refresh-shadow" class="btn btn-primary mb-3">刷新最近 20 条</button>
+<p id="shadow-status" role="status">正在读取…</p>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>时间 / 网址</th><th>URL 模型</th><th>视觉 / 表单</th><th>原判定</th><th>联合建议（不执行）</th></tr></thead>
+<tbody id="shadow-rows"></tbody></table></div>
+<p class="text-muted">风险分数不是网站安全概率。检测未完成会单独标明；本页历史不含人工真值标签，不能据此计算准确率。</p>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/js/shadow.js"></script>
+{% endblock %}

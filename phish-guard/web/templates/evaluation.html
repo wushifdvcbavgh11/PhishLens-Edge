@@ -1,0 +1,29 @@
+<section id="model-evaluation" class="card mb-4" aria-live="polite">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">模型评估 · 开发测试集</h5>
+        <button type="button" id="refresh-evaluation" class="btn btn-sm btn-outline-primary">刷新评估</button>
+    </div>
+    <div class="card-body">
+        <p id="evaluation-status">正在读取已加载模型的指标…</p>
+        <div id="evaluation-content" hidden>
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3"><div class="p-3 rounded bg-light"><div>Recall · 钓鱼召回率</div><strong class="fs-3" id="metric-recall"></strong></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded bg-light"><div>F1 · 综合指标</div><strong class="fs-3" id="metric-f1"></strong></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded bg-light"><div>Precision · 精确率</div><strong class="fs-3" id="metric-precision"></strong></div></div>
+                <div class="col-6 col-md-3"><div class="p-3 rounded bg-light"><div>正常样本误报率</div><strong class="fs-3" id="metric-fpr"></strong></div></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered text-center align-middle">
+                    <caption>混淆矩阵：行是真实标签，列是模型预测；正类＝钓鱼。</caption>
+                    <thead><tr><th scope="col">真实 \ 预测</th><th scope="col">正常</th><th scope="col">钓鱼</th></tr></thead>
+                    <tbody>
+                        <tr><th scope="row">真实正常</th><td class="table-success"><strong id="cm-tn"></strong><br>TN · 正确识别</td><td class="table-warning"><strong id="cm-fp"></strong><br>FP · 误报</td></tr>
+                        <tr><th scope="row">真实钓鱼</th><td class="table-warning"><strong id="cm-fn"></strong><br>FN · 漏报</td><td class="table-success"><strong id="cm-tp"></strong><br>TP · 正确检出</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p id="evaluation-samples" class="small"></p>
+            <p id="evaluation-notes" class="small text-muted mb-0"></p>
+        </div>
+    </div>
+</section>

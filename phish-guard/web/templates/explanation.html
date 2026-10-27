@@ -1,0 +1,19 @@
+<section id="prediction-explanation" class="card mb-4" hidden aria-live="polite">
+    <div class="card-header bg-white"><h5 class="mb-0">本次预测 · 特征贡献排序</h5></div>
+    <div class="card-body">
+        <p id="explanation-context" class="text-muted"></p>
+        <p id="explanation-equation" class="fw-semibold"></p>
+        <p class="small text-muted">按贡献绝对值排序。正值提高模型风险分数，负值降低分数，单位为百分点。采用树路径分解，解释当前模型分支，不是因果关系、SHAP 或全局特征重要性。</p>
+        <div class="table-responsive"><table class="table table-sm align-middle">
+            <thead><tr><th>特征</th><th>本次取值</th><th>方向与贡献</th><th style="min-width:100px">相对幅度</th></tr></thead>
+            <tbody id="contribution-top"></tbody>
+        </table></div>
+        <details><summary>展开其余特征</summary>
+            <div class="table-responsive"><table class="table table-sm align-middle">
+                <thead><tr><th>特征</th><th>本次取值</th><th>方向与贡献</th><th style="min-width:100px">相对幅度</th></tr></thead>
+                <tbody id="contribution-rest"></tbody>
+            </table></div>
+        </details>
+        <p id="explanation-source" class="small mt-3 mb-0"></p>
+    </div>
+</section>
