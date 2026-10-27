@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "sample_id": null,
+  "group_id": null,
+  "source_id": null,
+  "input_sha256": null,
+  "review_A": {
+    "reviewer_id": null,
+    "submitted": false,
+    "reviewed_at": null,
+    "independence_attested": false,
+    "claimed_brand": null,
+    "visible_evidence": [],
+    "target_brand": null,
+    "target_evidence": [],
+    "risk_truth": null,
+    "risk_evidence": [],
+    "confidence_status": "unreviewed",
+    "unresolved_questions": []
+  },
+  "review_B": {
+    "reviewer_id": null,
+    "submitted": false,
+    "reviewed_at": null,
+    "independence_attested": false,
+    "claimed_brand": null,
+    "visible_evidence": [],
+    "target_brand": null,
+    "target_evidence": [],
+    "risk_truth": null,
+    "risk_evidence": [],
+    "confidence_status": "unreviewed",
+    "unresolved_questions": []
+  },
+  "comparison": {
+    "status": "awaiting_two_reviews",
+    "conflicts": []
+  },
+  "adjudication": {
+    "reviewer_id": null,
+    "decision": null,
+    "evidence": [],
+    "status": "not_started"
+  },
+  "independent_truth": null,
+  "freeze_eligible": false,
+  "field_instructions": {
+    "claimed_brand": "页面实际声称的身份，允许多个/unknown；不是最高模型候选",
+    "visible_evidence": "文字/Logo、角色、框及截图/DOM证据定位；不得记录输入值",
+    "target_brand": "攻击目标或被声称身份的独立裁决，不能由作者目录直接填充",
+    "target_evidence": "来源、采集时间、静态证据、定位与推理；不足填空",
+    "risk_truth": "benign/phishing/unresolved；品牌词、密码框或非官网域名不能单独决定",
+    "risk_evidence": "采集时合法性/授权或恶意性证据；不能凭外观猜",
+    "confidence_status": "unreviewed/author_only/provisional/independently_supported/unresolved",
+    "unresolved_questions": "列明冲突、来源/映射/角色等缺口"
+  },
+  "rules": [
+    "A/B必须是两位可追溯的独立复核者，助手不能代签",
+    "先隐藏模型输出和作者风险标签，再分证据阶段复核",
+    "不一致保留双方原值，pending_adjudication；一致也不自动生成真值",
+    "只有人工完成裁决与资格审查后才另建冻结版本",
+    "不得覆盖作者标签或把合成测试里的审阅者占位符当真实人员"
+  ]
+}

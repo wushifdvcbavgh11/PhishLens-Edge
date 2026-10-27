@@ -1,0 +1,137 @@
+{
+  "archive_date": "2026-10-27",
+  "phase_closed": true,
+  "original_artifacts_stay_local": true,
+  "files": [
+    {
+      "destination": "docs/research/phase2/README.md",
+      "source_filenames": [
+        "PhishLens 第二阶段最终总结.md"
+      ],
+      "source_sha256": [
+        "ad67e6b6a48e3eba837c9d30f32c7ccbf160d390c31791da9fd152e50f23beb5"
+      ],
+      "preparation": "new publication summary from existing records"
+    },
+    {
+      "destination": "docs/research/phase2/evaluation-protocol.md",
+      "source_filenames": [
+        "评估协议.md"
+      ],
+      "source_sha256": [
+        "2acc44d4dd19bb972dd568d286ac582f605d8c2509de954d21a9d56a99078731"
+      ],
+      "preparation": "archive banner added; methodology retained"
+    },
+    {
+      "destination": "docs/research/phase2/engineering-findings.md",
+      "source_filenames": [
+        "第十一项实验收敛报告.md",
+        "第二阶段第十项报告.md",
+        "第二阶段证据采集与性能报告.md"
+      ],
+      "source_sha256": [
+        "82126aeb378655aa7e995ca87d3bf8f8a216156a6c42ec0bfd96bb9150b83084",
+        "16a7c5cee6e2ddfd062bbbf903061503d890b47d6507862f0f8355ebec62263b",
+        "42faf701a368a2a2371d66db00545e7886ff26765c808f147e795798423932df"
+      ],
+      "preparation": "new sanitized aggregate document"
+    },
+    {
+      "destination": "docs/research/phase2/dom-production-gap.md",
+      "source_filenames": [
+        "DOM生产适配差距清单.md"
+      ],
+      "source_sha256": [
+        "7bd54ecc55cb2464e9839df026324e21a82b0d644a0a7fe1e504275ac4f3ae40"
+      ],
+      "preparation": "local manifest reference replaced; source review retained"
+    },
+    {
+      "destination": "docs/research/phase2/results-summary.json",
+      "source_filenames": [
+        "修正版真实匹配验证.json"
+      ],
+      "source_sha256": [
+        "5827e155d489081cda63d6f2c4acfcf5fcc8e290400b4cbc76d6dcc54f8f8f50"
+      ],
+      "preparation": "selected aggregate fields only"
+    },
+    {
+      "destination": "docs/research/phase2/annotation-template.json",
+      "source_filenames": [
+        "双人标注模板.json"
+      ],
+      "source_sha256": [
+        "57388cf77770cf4673cbdb617c6604ecac8518089c74bc6babc263c227c927be"
+      ],
+      "preparation": "byte content retained as UTF-8 text; standalone experimental copy"
+    },
+    {
+      "destination": "experiments/phase2/step10_budget.py",
+      "source_filenames": [
+        "step10_budget.py"
+      ],
+      "source_sha256": [
+        "b3bfa6d4548b49deb8cfef24659b7d804fa3ba52c5a5a15f04ab67cffd728b2b"
+      ],
+      "preparation": "byte content retained as UTF-8 text; standalone experimental copy"
+    },
+    {
+      "destination": "experiments/phase2/step9_dom_boundary.js",
+      "source_filenames": [
+        "step9_dom_boundary.js"
+      ],
+      "source_sha256": [
+        "7b588b3e5a4ba55259bcf43d96f4b07daa776b6d6e61f38b21ef038c0c7d96ca"
+      ],
+      "preparation": "byte content retained as UTF-8 text; standalone experimental copy"
+    },
+    {
+      "destination": "experiments/phase2/step10_dom_consistency.js",
+      "source_filenames": [
+        "step10_dom_consistency.js"
+      ],
+      "source_sha256": [
+        "aa101e45988c3ae593e452f7306e3a201ec41df8a517e38f8df399127dac79b1"
+      ],
+      "preparation": "byte content retained as UTF-8 text; standalone experimental copy"
+    },
+    {
+      "destination": "experiments/phase2/step6_text_context_variant.py",
+      "source_filenames": [
+        "step6_text_context_variant.py"
+      ],
+      "source_sha256": [
+        "8c8a93e40d44f7a7a8eb6a511999dcdbbb717ce0346a2e15c087535887758b97"
+      ],
+      "preparation": "byte content retained as UTF-8 text; standalone experimental copy"
+    },
+    {
+      "destination": "experiments/phase2/step7_text_prototype.py",
+      "source_filenames": [
+        "step7_text_prototype.py"
+      ],
+      "source_sha256": [
+        "80276c42f5eaec396714ae394805052b7b4503f8ff6853ba92e86b4ba1baae62"
+      ],
+      "preparation": "byte content retained as UTF-8 text; standalone experimental copy"
+    },
+    {
+      "destination": "experiments/phase2/README.md",
+      "source_filenames": [
+        "step10_budget.py",
+        "step9_dom_boundary.js",
+        "step10_dom_consistency.js",
+        "step7_text_prototype.py"
+      ],
+      "source_sha256": [
+        "b3bfa6d4548b49deb8cfef24659b7d804fa3ba52c5a5a15f04ab67cffd728b2b",
+        "7b588b3e5a4ba55259bcf43d96f4b07daa776b6d6e61f38b21ef038c0c7d96ca",
+        "aa101e45988c3ae593e452f7306e3a201ec41df8a517e38f8df399127dac79b1",
+        "80276c42f5eaec396714ae394805052b7b4503f8ff6853ba92e86b4ba1baae62"
+      ],
+      "preparation": "new packaging documentation only"
+    }
+  ]
+}

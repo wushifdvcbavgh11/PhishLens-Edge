@@ -1,0 +1,21 @@
+{
+  "phase": "closed_research_only",
+  "independent_qualified_samples": 0,
+  "production_integration": false,
+  "last_real_match": {
+    "attempts": 1,
+    "awl_calls": 0,
+    "embedding_started": 4,
+    "embedding_completed": 4,
+    "candidate_alignment_completed": 2,
+    "region_matches_completed": 0,
+    "matching_seconds": 2.7329412000253797,
+    "hard_timeouts": 0,
+    "status": "incomplete",
+    "reason": "ALIGNMENT_CANDIDATE_CAP",
+    "visual_confirmed_brand": null,
+    "risk_decision": "uncertain"
+  },
+  "independent_accuracy_metrics": null,
+  "note": "Aggregates of development/synthetic experiments only; no raw samples, URLs, screenshots, user identities or labels."
+}
