@@ -25,8 +25,8 @@
     console.log('[PhishLens] content.js loaded on', location.href);
   } catch (e) { /* some environments silently drop console — ignore */ }
 
-  const SERVER = 'http://127.0.0.1:8765';
-  const CLIENT_VERSION = '0.2.4';
+
+  const CLIENT_VERSION = chrome.runtime.getManifest().version;
   const VERDICT_TTL_MS = 60 * 1000; // a verdict protects at most 60s, then re-check
   const BYPASS_TTL_MS = 30 * 1000;
   const TIMEOUT_MS = 30 * 1000;
@@ -54,6 +54,30 @@
   let retryCount = 0;
   let pageSuspended = false;
   const ownedNodes = new WeakSet();
+
+  // Scope exclusions are not allow verdicts. Keep other loopback ports and
+  // private-network test sites eligible, and never infer MIME from a URL suffix.
+  const MANAGEMENT_ORIGIN = 'http://127.0.0.1:8000';
+  const MANAGEMENT_PATHS = new Set([
+    '/', '/checker', '/shadow', '/alerts', '/docs', '/redoc',
+    '/docs/oauth2-redirect', '/health', '/openapi.json'
+  ]);
+  function pageExclusionReason() {
+    try {
+      const url = new URL(location.href);
+      const path = url.pathname.replace(/\/$/, '') || '/';
+      if (url.origin === MANAGEMENT_ORIGIN
+          && (MANAGEMENT_PATHS.has(path) || path.startsWith('/api/v1/'))) {
+        return 'PROJECT_MANAGEMENT_PAGE';
+      }
+    } catch (_) { /* invalid URLs remain subject to the existing validation */ }
+    const mime = (document.contentType || '').split(';', 1)[0].trim().toLowerCase();
+    if (mime && !['text/html', 'application/xhtml+xml'].includes(mime)) {
+      return 'NON_HTML_DOCUMENT';
+    }
+    // Unknown type is not evidence that a document can safely be excluded.
+    return null;
+  }
 
   // ---------------------------------------------------------------- DOM signals
   function buildPageFingerprint() {
@@ -128,10 +152,14 @@
     const passwordInput = document.querySelector('input[type="password"]');
     const forms = Array.prototype.slice.call(document.querySelectorAll('form'));
     const actionDomains = [];
+    const passwordForms = [];
     forms.forEach((f) => {
       try {
         const u = new URL(f.action || '', location.href);
         if (u.hostname) actionDomains.push(u.hostname);
+        if (Array.from(f.elements || []).some(el => el.tagName === 'INPUT' && el.type === 'password')) {
+          passwordForms.push({action_domain:u.hostname, action_scheme:u.protocol.replace(':',''), method:(f.method || 'get').toLowerCase()});
+        }
       } catch (e) { /* relative/invalid action */ }
     });
     const faviconLink = document.querySelector('link[rel~="icon"]');
@@ -147,6 +175,7 @@
       page_domain: host,
       has_password_input: !!passwordInput,
       has_login_form: forms.length > 0,
+      password_forms: passwordForms.slice(0,32),
       form_action_domains: Array.from(new Set(actionDomains)),
       title: title.slice(0, 200),
       favicon: faviconLink ? faviconLink.href.slice(0, 500) : '',
@@ -176,6 +205,50 @@
   }
   setProbe('contentLoaded', '1');
   setProbe('clientVersion', CLIENT_VERSION);
+
+  // Local requests belong to the extension origin, not the inspected website.
+  function requestAnalysis(payload, request, type = 'ANALYZE') {
+    return new Promise((resolve, reject) => {
+      const cancel = () => {
+        try { chrome.runtime.sendMessage({ type: 'CANCEL_ANALYZE', requestId: request.id }, () => { void chrome.runtime.lastError; }); } catch (_) {}
+        reject(new Error('ANALYSIS_ABORTED'));
+      };
+      request.controller.signal.addEventListener('abort', cancel, { once: true });
+      try {
+        chrome.runtime.sendMessage({ type, requestId: request.id, payload }, response => {
+          request.controller.signal.removeEventListener('abort', cancel);
+          if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+          if (!response || response.error) return reject(new Error(response?.error || 'NO_ANALYSIS_RESPONSE'));
+          resolve({ ok: response.ok, status: response.status, json: async () => JSON.parse(response.body) });
+        });
+      } catch (error) {
+        request.controller.signal.removeEventListener('abort', cancel);
+        reject(error);
+      }
+    });
+  }
+
+  async function waitForModels(request, aborted) {
+    while (isCurrent(request)) {
+      const response = await Promise.race([
+        requestAnalysis({ url: location.href, analysis_mode: 'browser' }, request, 'MODEL_STATUS'), aborted
+      ]);
+      if (!isCurrent(request)) return;
+      // Older services retain their existing bounded analysis behavior.
+      if (response.status === 404) return;
+      if (!response.ok) throw new Error('MODEL_STATUS_UNAVAILABLE');
+      const health = await response.json();
+      const state = health.model_initialization?.state;
+      setProbe('modelState', state || 'invalid');
+      if (state === 'ready' && health.models_ready === true) return;
+      if (state === 'failed') throw new Error('MODEL_INITIALIZATION_FAILED');
+      if (!['uninitialized', 'loading'].includes(state) || health.models_ready !== false) {
+        throw new Error('MODEL_STATUS_INVALID');
+      }
+      showStatus('checking', 'PhishLens：本机视觉模型正在初始化，尚未完成检测（最多等待 60 秒）…');
+      await Promise.race([new Promise(resolve => setTimeout(resolve, 1000)), aborted]);
+    }
+  }
 
   // ---------------------------------------------------------------- screenshot
   function captureVisibleTab(request) {
@@ -252,7 +325,8 @@
         .pls-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--accent); }
         .pls-checking .pls-dot { animation: pls-blink 1.6s ease-in-out infinite; }
         .pls-uncertain { --accent: #f4c26b; }
-        .pls-offline { --accent: #ffaca4; }
+        .pls-offline, .pls-risk { --accent: #ffaca4; }
+        .pls-caution { --accent: #f4c26b; }
         .pls-ok { --accent: #80d6b5; }
         .pls-title { font-size: 14px; font-weight: 600; color: #fff; }
         .pls-msg { margin: 0; color: #c0cde0; overflow-wrap: anywhere;
@@ -317,7 +391,8 @@
     toast.className = 'pls-toast pls-' + kind;
     s.getElementById('status-title').textContent = {
       checking: '正在检测当前页面', uncertain: '需要进一步核实',
-      offline: '检测暂未完成', ok: '未发现明确风险'
+      offline: '检测暂未完成', ok: '未发现明确风险',
+      general: '通用检查已完成', caution: '发现需核实的信号', risk: '发现凭据风险'
     }[kind] || '页面检测状态';
     s.getElementById('msg').textContent = text.replace(/^PhishLens(?:\s+[\d.]+)?[：\s]*/, '');
     const act = s.getElementById('act');
@@ -368,7 +443,7 @@
     try {
       for (const key of ['captureError', 'abortReason', 'fetchError', 'httpStatus', 'captureLen',
         'decision', 'visualStatus', 'analysisStatus', 'reasonCodes', 'requestId', 'lastTrigger',
-        'retryAttempt', 'retryInMs']) delete probe.dataset[key];
+        'retryAttempt', 'retryInMs', 'skipReason', 'modelState']) delete probe.dataset[key];
     } catch (e) { /* diagnostics must never interrupt protection */ }
   }
 
@@ -388,6 +463,27 @@
     const previous = activeRequest;
     activeRequest = null;
     if (previous) previous.controller.abort();
+  }
+
+  function skipExcludedPage() {
+    const reason = pageExclusionReason();
+    if (!reason) return false;
+    if (pageState !== 'skipped') {
+      pageRevision++;
+      cancelActiveRequest();
+      cancelRecovery(true);
+      clearTimeout(loadTimer);
+      loadTimer = null;
+      lastDecision = null;
+      consentOnce = null;
+      unavailableMessage = '';
+      clearDiagnostics();
+      removeWarning();
+      hideStatus();
+      pageState = 'skipped';
+      setProbe('skipReason', reason);
+    }
+    return true;
   }
 
   function retryWhenVisible() {
@@ -433,7 +529,8 @@
     const mutations = records || (pageObserver ? pageObserver.takeRecords() : []);
     const urlChanged = knownUrl !== location.href;
     knownUrl = location.href;
-    if (urlChanged || hasPageMutation(mutations)) invalidatePage();
+    if (skipExcludedPage()) return;
+    if (pageState === 'skipped' || urlChanged || hasPageMutation(mutations)) invalidatePage();
   }
 
   function pageSignature() {
@@ -553,6 +650,7 @@
 
   async function analyze(trigger) {
     if (pageSuspended) return null;
+    if (skipExcludedPage()) return null;
     let signature;
     try {
       signature = pageSignature();
@@ -584,17 +682,23 @@
     setProbe('requestId', String(request.id));
     setProbe('lastTrigger', trigger);
     setProbe('retryAttempt', String(retryCount));
-    showStatus('checking', 'PhishLens ' + CLIENT_VERSION + '：正在获取页面截图（最多等待 30 秒）…');
+    showStatus('checking', 'PhishLens：正在确认本机视觉模型就绪状态…');
     const aborted = new Promise((resolve, reject) => {
       request.controller.signal.addEventListener('abort', () => reject(new Error('ANALYSIS_ABORTED')), { once: true });
     });
-    const timer = setTimeout(() => {
+    let timer = setTimeout(() => {
       request.timedOut = true;
       request.controller.abort();
-    }, TIMEOUT_MS);
+    }, 60000);
 
-    let stage = 'capture';
+    let stage = 'initialization';
     try {
+      await waitForModels(request, aborted);
+      if (!isCurrent(request)) return null;
+      clearTimeout(timer);
+      timer = setTimeout(() => { request.timedOut = true; request.controller.abort(); }, TIMEOUT_MS);
+      stage = 'capture';
+      showStatus('checking', 'PhishLens ' + CLIENT_VERSION + '：正在获取页面截图（最多等待 30 秒）…');
       const shot = await Promise.race([captureVisibleTab(request), aborted]);
       if (!isCurrent(request)) return null;
       if (!shot || shot.error) {
@@ -618,10 +722,7 @@
       const payload = { url: location.href, screenshot_base64: shot, dom_signals: collectDomSignals(), trigger, analysis_mode: 'browser' };
       showStatus('checking', 'PhishLens ' + CLIENT_VERSION + '：正在等待本机分析结果（总计最多 30 秒）…');
       stage = 'fetch';
-      const resp = await Promise.race([fetch(SERVER + '/analyze', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload), signal: request.controller.signal
-      }), aborted]);
+      const resp = await Promise.race([requestAnalysis(payload, request), aborted]);
       if (!isCurrent(request)) return null;
       setProbe('httpStatus', String(resp.status));
       if (!resp.ok) {
@@ -644,6 +745,7 @@
         setProbe('reasonCodes', result.reason_codes);
         const failure = incompleteReason(result);
         showUnavailable(failure.message, failure);
+        showShadowEvidence(result);
         return null;
       }
       cancelRecovery(true);
@@ -668,18 +770,30 @@
           BRAND_UNCONFIRMED: '视觉证据不足，暂时无法确认品牌，请核对网址。'
         };
         const code = Object.keys(detail).find((key) => result.reason_codes.includes(key));
-        showStatus('uncertain', code ? 'PhishLens：' + detail[code]
+        if (result.general_risk?.status === 'completed' && typeof result.general_risk.summary === 'string') {
+          const risk = result.general_risk;
+          const kind = risk.level === 'high' ? 'risk' : risk.level === 'caution' ? 'caution' : 'general';
+          const brandNote = ['MULTIPLE_BRANDS','AMBIGUOUS_BRANDS','CREDENTIAL_BRAND_UNLINKED'].includes(code) ? ' ' + detail[code] : '';
+          showStatus(kind, risk.summary + brandNote, '重新检测', event => { if (event.isTrusted) analyze('retry'); });
+        } else showStatus('uncertain', code ? 'PhishLens：' + detail[code]
           : 'PhishLens 发现疑点：' + brand + (top || '建议进一步确认后再输入账号密码。'),
           '重新检测', (event) => { if (event.isTrusted) analyze('retry'); });
       } else {
         showStatus('ok', 'PhishLens：本页未发现明确风险。');
       }
+      showShadowEvidence(result);
       return result;
     } catch (error) {
       // A broken page-signature read must not leave the UI in "checking".
       if (activeRequest === request && request.id === requestSequence) {
         setProbe('fetchError', error.message);
-        if (request.timedOut) {
+        if (/extension context invalidated/i.test(error.message)) {
+          showUnavailable('PhishLens：扩展已更新或重新加载，请刷新此页面以恢复检测。');
+        } else if (error.message === 'MODEL_INITIALIZATION_FAILED') {
+          showUnavailable('PhishLens：本机视觉模型初始化失败，本页未完成检测。请检查服务 /health 中的错误；服务有 30 秒失败冷却，恢复后可重新检测。');
+        } else if (stage === 'initialization' && request.timedOut) {
+          showUnavailable('PhishLens：模型初始化等待超过 60 秒，本页未完成检测。请检查本机服务状态后重新检测。');
+        } else if (request.timedOut) {
           showUnavailable('PhishLens：' + (stage === 'capture' ? '获取截图' : '等待本机分析结果')
             + '超时（30 秒），本页未完成检测。首次加载模型可能较慢，请确认本机服务正在运行。', { retryable: true });
         } else if (stage === 'json') {
@@ -692,6 +806,31 @@
     } finally {
       clearTimeout(timer);
       if (activeRequest === request) activeRequest = null;
+    }
+  }
+
+  function showShadowEvidence(result) {
+    const fusion = result?.shadow_fusion;
+    if (!fusion || fusion.mode !== 'shadow') return;
+    const url = fusion.url_analysis || {};
+    const labels = { block: '高风险', uncertain: '需复核', allow: '未发现明显风险' };
+    const score = url.status === 'completed' && Number.isFinite(url.ml_score)
+      ? (url.ml_score * 100).toFixed(1) + '%' : '不可用';
+    const form = { high: '高风险信号', caution: '需核实', not_observed: '未发现信号' };
+    const text = '并行试运行（不改变拦截）：URL 风险分数 ' + score
+      + '；视觉 ' + (fusion.visual?.brand || (fusion.visual?.status === 'completed' ? '未确认品牌'
+        : fusion.visual?.status === 'skipped' ? '白名单跳过' : '未完成'))
+      + '；表单/通用检查 ' + (form[fusion.form_risk?.level] || '未完成')
+      + '；联合建议：' + (labels[fusion.suggested_decision] || '未完成')
+      + (fusion.status === 'partial' ? '（部分检测未完成）' : '') + '。';
+    const target = result.decision === 'block'
+      ? warningHost?.shadowRoot?.getElementById('pleg-description')
+      : statusHost?.getElementById('msg');
+    if (target) {
+      const note = document.createElement('div');
+      note.textContent = text;
+      note.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid #718096;font-size:12px;line-height:1.6';
+      target.appendChild(note);
     }
   }
 
@@ -804,6 +943,7 @@
   }
 
   document.addEventListener('submit', (event) => {
+    if (skipExcludedPage()) return;
     if (!isSensitiveForm(event.target)) return;
     const signature = pageSignature();
     if (hasConsent(signature)) {
@@ -843,6 +983,7 @@
   // ---------------------------------------------------------------- triggers
   // Trigger 1: page loaded (wait for layout/logo render)
   function onLoadAnalyze() {
+    if (skipExcludedPage()) return;
     clearTimeout(loadTimer);
     loadTimer = setTimeout(() => {
       loadTimer = null;
@@ -852,6 +993,7 @@
   window.addEventListener('load', onLoadAnalyze);
   document.addEventListener('visibilitychange', () => {
     if (pageSuspended) return;
+    if (skipExcludedPage()) return;
     if (document.visibilityState === 'hidden') {
       if (activeRequest || retryTimer || pageRetryTimer || pendingVisibleRetry) {
         cancelActiveRequest();
@@ -866,6 +1008,7 @@
 
   // Trigger 2: password box gains focus -> re-check right before typing
   document.addEventListener('focusin', (e) => {
+    if (skipExcludedPage()) return;
     const el = e.target;
     if (el && el.tagName === 'INPUT' && el.type === 'password') {
       const signature = pageSignature();

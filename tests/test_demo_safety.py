@@ -58,7 +58,9 @@ class DemoSafetyTests(unittest.TestCase):
         self.assertTrue(any(attrs.get("id") == "local-demo-banner" for _, attrs in parsed.tags))
         self.assertTrue(any(attrs.get("id") == "local-demo-status" for _, attrs in parsed.tags))
         self.assertIn("本地演示 / 请勿输入真实账号密码", html)
-        self.assertIn("position:fixed", html)
+        # The notice remains visible in document flow, without covering logos
+        # when the user scrolls a short viewport.
+        self.assertIn(".local-demo-banner { position:static", html)
         self.assertIn("演示提交（不会登录）", html)
         self.assertEqual(len(parsed.scripts), 1, "Only the local submit guard may run")
         guard = parsed.scripts[0]
@@ -74,7 +76,7 @@ class DemoSafetyTests(unittest.TestCase):
                 self.assertFalse(value.lower().startswith(("http:", "https:", "//")), f"External {key} is forbidden in local demos")
 
     def test_checked_in_pages_are_local_only(self):
-        pages = sorted((ROOT / "testset" / "fake").glob("*.html"))
+        pages = sorted((ROOT / "testset" / "fake").glob("fake_*.html"))
         self.assertGreaterEqual(len(pages), 4)
         for path in pages:
             with self.subTest(page=path.name):

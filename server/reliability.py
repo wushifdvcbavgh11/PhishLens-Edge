@@ -6,8 +6,8 @@ from threading import RLock
 from time import monotonic
 
 
-POLICY_VERSION = "2026-10-13.1"
-MODEL_VERSION = "siamese-multiref-associated-v3"
+POLICY_VERSION = "2026-10-19.2"
+MODEL_VERSION = "siamese-multiregion-associated-v6"
 
 
 class LRUCache:

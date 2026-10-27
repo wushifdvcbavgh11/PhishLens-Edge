@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishLens Edge Guard",
-  "version": "0.2.4",
+  "version": "0.2.8",
   "description": "On-device phishing detection: visual logo matching + DOM signals + local VLM review. Screenshots never leave this machine.",
   "permissions": ["activeTab", "storage"],
   "host_permissions": ["<all_urls>"],

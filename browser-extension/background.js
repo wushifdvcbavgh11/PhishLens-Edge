@@ -1,8 +1,16 @@
 // PhishLens Edge Guard - background service worker (MV3)
-// Sole job: capture the ACTIVE visible tab as PNG on demand from content scripts,
+// Capture the ACTIVE visible tab as PNG on demand from content scripts,
 // Verify the requesting tab before AND after capture. The content script also
 // binds the result to its current page revision; a screenshot is not a durable
 // identity for a page that can navigate or change while analysis is in flight.
+
+// Edge can retain the original document URL in MessageSender after a hash
+// navigation. Only ignore the fragment here; full URLs still guard the capture
+// before/after checks below, and the content script tracks page revisions.
+function sameDocumentUrl(left, right) {
+  return typeof left === 'string' && typeof right === 'string'
+    && left.split('#', 1)[0] === right.split('#', 1)[0];
+}
 
 const pendingCaptures = new Set();
 chrome.tabs.onActivated.addListener(({ windowId }) => {
@@ -55,7 +63,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
     const capturedUrl = tab.url;
-    if (pending.changed || !capturedUrl || (sender.url && sender.url !== capturedUrl)) {
+    if (pending.changed || !capturedUrl || (sender.url && !sameDocumentUrl(sender.url, capturedUrl))) {
       reply({ dataUrl: null, error: 'PAGE_CHANGED' });
       return;
     }
@@ -89,4 +97,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   });
 
   return true; // keep the messaging channel open for the async reply
+});
+
+// A narrow local-analysis bridge, never a general URL proxy.
+const localAnalyses = new Map();
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  if (!msg || !['ANALYZE', 'MODEL_STATUS', 'CANCEL_ANALYZE'].includes(msg.type)) return false;
+  if (!sender.tab || sender.frameId !== 0 || !/^https?:\/\//.test(sender.url || '')
+      || !Number.isSafeInteger(msg.requestId)) { reply({ error: 'INVALID_ANALYSIS_SENDER' }); return false; }
+  const key = `${sender.tab.id}:${sender.documentId || sender.url}:${msg.requestId}`;
+  if (msg.type === 'CANCEL_ANALYZE') {
+    localAnalyses.get(key)?.abort(); reply({ cancelled: true }); return false;
+  }
+  const payload = msg.payload;
+  if (!payload || !sameDocumentUrl(payload.url, sender.url) || payload.analysis_mode !== 'browser'
+      || (msg.type === 'ANALYZE' && (typeof payload.screenshot_base64 !== 'string'
+      || payload.screenshot_base64.length > 32 * 1024 * 1024))) {
+    reply({ error: 'INVALID_ANALYSIS_PAYLOAD' }); return false;
+  }
+  if (localAnalyses.has(key) || localAnalyses.size >= 8) {
+    reply({ ok: false, status: 429, body: '' }); return false;
+  }
+  const controller = new AbortController();
+  localAnalyses.set(key, controller);
+  const isStatus = msg.type === 'MODEL_STATUS';
+  const timer = setTimeout(() => controller.abort(), isStatus ? 3000 : 30000);
+  (async () => {
+    try {
+      const response = await fetch(isStatus ? 'http://127.0.0.1:8765/warmup' : 'http://127.0.0.1:8765/analyze', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: isStatus ? '{}' : JSON.stringify(payload), signal: controller.signal,
+        credentials: 'omit', redirect: 'error', cache: 'no-store'
+      });
+      const body = response.ok ? await response.text() : '';
+      reply({ ok: response.ok, status: response.status, body });
+    } catch (error) {
+      reply({ error: error.name === 'AbortError' ? 'ANALYSIS_ABORTED' : 'LOCAL_SERVICE_UNREACHABLE' });
+    } finally {
+      clearTimeout(timer); localAnalyses.delete(key);
+    }
+  })();
+  return true;
 });

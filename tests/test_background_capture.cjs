@@ -11,7 +11,7 @@ function capture({ before = {}, after = {}, sender = {}, captureError = null, du
   let reads = 0;
   let captures = 0;
   const base = { id: 7, windowId: 3, active: true, url: 'https://example.test/login' };
-  const runtime = { lastError: null, onMessage: { addListener(fn) { listener = fn; } } };
+  const runtime = { lastError: null, onMessage: { addListener(fn) { listener ||= fn; } } };
   const events = {};
   vm.runInNewContext(source, {
     chrome: {
@@ -85,4 +85,22 @@ test('activity in another window does not invalidate this capture', () => {
 test('capture errors and empty captures never contain an image', () => {
   assert.equal(capture({ captureError: 'capture unavailable' }).result.dataUrl, null);
   assert.equal(capture({ dataUrl: '' }).result.error, 'EMPTY_CAPTURE');
+});
+
+test('accepts a stable fragment navigation despite the sender retaining its document URL', () => {
+  const url = 'https://example.test/login#password';
+  const { result, captures } = capture({ before: { url }, after: { url } });
+  assert.ok(result.dataUrl);
+  assert.equal(captures, 1);
+});
+
+test('fragment handling still rejects changed paths, queries and navigation during capture', () => {
+  for (const url of ['https://other.test/login#password', 'https://example.test/other#password',
+    'https://example.test/login?new=1#password']) {
+    const { result, captures } = capture({ before: { url }, after: { url } });
+    assert.equal(result.error, 'PAGE_CHANGED');
+    assert.equal(captures, 0);
+  }
+  assert.equal(capture({ after: { url: 'https://example.test/login#new' } }).result.error, 'PAGE_CHANGED');
+  assert.equal(capture({ duringCapture: events => events.updated(7, { url: 'https://example.test/login#new' }) }).result.error, 'PAGE_CHANGED');
 });

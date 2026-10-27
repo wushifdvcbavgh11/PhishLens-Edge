@@ -6,6 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../browser-extension/content.js'), 'utf8');
+const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../browser-extension/manifest.json'), 'utf8'));
 const instrumented = source.replace('\n})();', `
   globalThis.testApi = { analyze, pageSignature, onLoadAnalyze, visualDomContext,
     state: () => ({ lastDecision, pageState, consentOnce, warned, activeRequest }) };
@@ -25,8 +26,9 @@ function deferred() {
 async function flush() { for (let i = 0; i < 20; i++) await Promise.resolve(); }
 
 function harness(options = {}) {
+  const transports = new Map();
   let now = 100000, nextTimer = 0, observer;
-  const timers = new Map(), events = {}, windowEvents = {}, requests = [], writes = [];
+  const timers = new Map(), events = {}, windowEvents = {}, requests = [], writes = [], captures = [];
   const legacyStorage = options.storage || {};
   function queue(record) { if (observer?.observing) observer.records.push(record); }
   function element(tag = 'div') {
@@ -71,6 +73,7 @@ function harness(options = {}) {
   const controls = options.sensitive === false ? [] : [password];
   const document = {
     body, documentElement: root, title: 'Login', readyState: 'loading', visibilityState: 'visible',
+    contentType: options.mime === undefined ? 'text/html' : options.mime,
     createElement: element,
     createTreeWalker(node) {
       const texts = [];
@@ -94,7 +97,8 @@ function harness(options = {}) {
   const context = {
     document, MutationObserver, AbortController, URL,
     Date: class extends Date { static now() { return now; } },
-    location: { hostname: 'example.test', href: 'https://example.test/login' },
+    location: { hostname: new URL(options.url || 'https://example.test/login').hostname,
+      href: options.url || 'https://example.test/login' },
     window: { addEventListener(type, listener) { windowEvents[type] = listener; } },
     history: { back() {} }, console: { log() {}, error() {} },
     setTimeout(fn, delay) { timers.set(++nextTimer, { fn, at: now + delay, delay }); return nextTimer; },
@@ -102,7 +106,27 @@ function harness(options = {}) {
     setInterval(fn, delay) { timers.set(++nextTimer, { fn, at: now + delay, delay, interval: true }); return nextTimer; },
     chrome: {
       storage: { local: { get(keys, callback) { callback(legacyStorage); }, set(value, callback) { writes.push(value); callback(); } } },
-      runtime: { sendMessage(message, callback) {
+      runtime: { getManifest: () => manifest, sendMessage(message, callback) {
+        if (options.sendMessageError?.(message)) throw new Error('Extension context invalidated.');
+        if (message.type === 'CANCEL_ANALYZE') {
+          transports.get(message.requestId)?.abort(); callback({cancelled:true}); return;
+        }
+        if (message.type === 'MODEL_STATUS') {
+          if (options.modelStatus) return options.modelStatus(callback);
+          callback({ok:true,status:200,body:JSON.stringify({models_ready:true,model_initialization:{state:'ready'}})});
+          return;
+        }
+        if (message.type === 'ANALYZE') {
+          const controller = new AbortController(); transports.set(message.requestId, controller);
+          context.fetch('http://127.0.0.1:8765/analyze', {method:'POST',body:JSON.stringify(message.payload),signal:controller.signal})
+            .then(async r => {
+              let body = '';
+              if (r.ok) { try { body = JSON.stringify(await r.json()); } catch (_) { body = '{'; } }
+              callback({ok:r.ok,status:r.status,body});
+            }, error => callback({error:error.message}));
+          return;
+        }
+        captures.push(message);
         if (options.capture) return options.capture(callback);
         callback({ dataUrl: 'data:image/png;base64,TEST', tabId: 1 });
       } }
@@ -138,7 +162,7 @@ function harness(options = {}) {
     }
     now = until; await flush();
   }
-  return { api, context, document, requests, writes, forms, ordinaryForm, sensitiveForm, password,
+  return { api, context, document, requests, writes, captures, forms, ordinaryForm, sensitiveForm, password,
     events, windowEvents, timers, observer, root, body, text, node, submit, advance,
     mutate(record = { type: 'characterData', target: text }) { queue(record); observer.callback(observer.takeRecords()); } };
 }
@@ -154,6 +178,67 @@ test('completed browser allow retains the full result and uses qualified copy', 
   assert.equal(h.submit(), false);
   assert.equal(JSON.parse(h.requests[0].body).analysis_mode, 'browser');
 });
+
+test('diagnostic client version matches the installed manifest', () => {
+  const h = harness();
+  const probe = h.body.children.find(n => n.id === '__pleg_probe');
+  assert.equal(probe.dataset.clientVersion, manifest.version);
+});
+
+test('cold readiness wait does not consume the 30-second screenshot/analysis budget', async () => {
+  let ready = false;
+  const h = harness({modelStatus: cb => cb({ok:true,status:200,body:JSON.stringify({models_ready:ready,model_initialization:{state:ready?'ready':'loading'}})})});
+  const pending=h.api.analyze('test'); await flush();
+  await h.advance(31000);
+  assert.equal(h.captures.length,0); assert.equal(h.requests.length,0);
+  assert.equal(h.api.state().lastDecision,null);
+  assert.match(h.node('msg').textContent,/初始化/);
+  ready=true; await h.advance(1000); await pending;
+  assert.equal(h.api.state().pageState,'allow'); assert.equal(h.captures.length,1);
+});
+
+test('initialization wait is bounded at 60 seconds with no automatic infinite restart', async () => {
+  const h=harness({modelStatus:cb=>cb({ok:true,status:200,body:JSON.stringify({models_ready:false,model_initialization:{state:'loading'}})})});
+  const pending=h.api.analyze('test');await flush();await h.advance(60001);await pending;
+  assert.equal(h.api.state().pageState,'unavailable');assert.equal(h.api.state().lastDecision,null);
+  assert.match(h.node('msg').textContent,/60 秒/);assert.equal(h.captures.length,0);
+  await h.advance(120000);assert.equal(h.requests.length,0);
+});
+
+for(const state of ['failed','ready','garbage']) test(`unready or invalid initialization state ${state} cannot produce allow`,async()=>{
+  const h=harness({modelStatus:cb=>cb({ok:true,status:200,body:JSON.stringify({models_ready:false,model_initialization:{state}})})});
+  await h.api.analyze('test');assert.equal(h.api.state().pageState,'unavailable');assert.equal(h.api.state().lastDecision,null);assert.equal(h.captures.length,0);
+});
+
+test('navigation to management during model wait prevents capture and stale verdict',async()=>{
+  const h=harness({modelStatus:cb=>cb({ok:true,status:200,body:JSON.stringify({models_ready:false,model_initialization:{state:'loading'}})})});
+  const pending=h.api.analyze('test');await flush();
+  h.context.location.href='http://127.0.0.1:8000/shadow';h.context.location.hostname='127.0.0.1';
+  await h.advance(2000);await pending;
+  assert.equal(h.captures.length,0);assert.equal(h.api.state().lastDecision,null);
+});
+
+for (const stage of ['CAPTURE', 'ANALYZE']) {
+  test(`invalidated extension during ${stage} requires page refresh without server retry`, async () => {
+    let invalid = false;
+    const h = harness({sendMessageError: message => invalid && message.type === stage});
+    await h.api.analyze('test');
+    assert.equal(h.api.state().pageState, 'allow');
+    invalid = true;
+    await h.api.analyze('retry');
+    assert.equal(h.api.state().pageState, 'unavailable');
+    assert.equal(h.api.state().lastDecision, null);
+    assert.equal(h.api.state().warned, false);
+    assert.match(h.node('msg').textContent, /扩展.*更新|扩展.*加载/);
+    assert.match(h.node('msg').textContent, /刷新/);
+    assert.doesNotMatch(h.node('msg').textContent, /无法连接|自动.*重试/);
+    const captures = h.captures.length;
+    const requests = h.requests.length;
+    await h.advance(30000);
+    assert.equal(h.captures.length, captures);
+    assert.equal(h.requests.length, requests);
+  });
+}
 
 test('status starts as a dot and opening details never requests analysis or grants consent', async () => {
   const h = harness({ fetch: async () => response(verdict('uncertain')) });
@@ -775,4 +860,128 @@ test('delayed page_load keeps a fresh completed verdict and renews it after expi
   h.api.onLoadAnalyze(); await h.advance(1800);
   assert.equal(h.requests.length, 2);
   assert.equal(h.api.state().pageState, 'allow');
+});
+
+test('shadow high-risk suggestion displays evidence but never changes enforcement', async () => {
+  const h = harness({fetch: async () => response(verdict('allow', {
+    shadow_fusion: {mode:'shadow', status:'completed', suggested_decision:'block',
+      url_analysis:{status:'completed',ml_score:.91}, visual:{status:'completed',brand:'Test'},
+      form_risk:{level:'high'}}
+  }))});
+  await h.api.analyze('manual');
+  assert.equal(h.api.state().pageState, 'allow');
+  assert.equal(h.api.state().warned, false);
+  assert.equal(h.api.state().lastDecision.decision, 'allow');
+  assert.match(h.node('msg').children.at(-1).textContent, /91.0%/);
+  assert.match(h.node('msg').children.at(-1).textContent, /不改变拦截/);
+});
+
+for (const [level, title] of [['not_observed','通用检查已完成'],['caution','发现需核实的信号'],['high','发现凭据风险']]) {
+  test('general risk '+level+' does not masquerade as a brand verdict or hide details', async()=>{
+    const h=harness({fetch:async()=>response(verdict('uncertain', {
+      brand:null, reason_codes:['BRAND_UNCONFIRMED'],
+      general_risk:{status:'completed',level,summary:'具体通用风险证据；不能保证网站安全'}
+    }))});
+    await h.api.analyze('manual');
+    assert.equal(h.node('status-title').textContent,title);
+    assert.match(h.node('msg').textContent,/具体通用风险证据/);
+    assert.equal(h.api.state().warned,false);
+    assert.equal(h.api.state().lastDecision.decision,'uncertain');
+  });
+}
+
+for (const route of ['/', '/shadow', '/shadow/?view=latest#records', '/checker',
+  '/alerts', '/docs', '/redoc', '/health', '/openapi.json', '/api/v1/stats/shadow']) {
+  test(`management route ${route}: load, refresh, polling, focus and visibility never analyze`, async () => {
+    const h = harness({url:'http://127.0.0.1:8000'+route});
+    h.windowEvents.load();
+    for (let i = 0; i < 3; i++) {
+      h.text.nodeValue = 'Updated status '+i;
+      h.mutate();
+      h.mutate({type:'childList',target:h.body,addedNodes:[{}],removedNodes:[{}]});
+      await h.advance(30000);
+      h.windowEvents.load();
+      h.events.focusin({target:h.password});
+      h.document.visibilityState = 'hidden'; h.events.visibilitychange();
+      h.document.visibilityState = 'visible'; h.events.visibilitychange();
+      await h.api.analyze('retry');
+    }
+    assert.equal(h.captures.length,0);
+    assert.equal(h.requests.length,0);
+    assert.equal(h.api.state().pageState,'skipped');
+    assert.equal(h.api.state().lastDecision,null);
+    assert.equal(h.submit(),false, 'excluded pages do not enter the submission guard');
+  });
+}
+
+for (const mime of ['image/png','image/jpeg','image/svg+xml','text/css','text/javascript',
+  'application/javascript','font/woff2','application/pdf','application/json','text/plain']) {
+  test(`top-level ${mime} skips even when URL ends in .html`, async () => {
+    const h=harness({url:'http://192.168.1.10:8081/fake_alipay.html',mime});
+    h.windowEvents.load();
+    h.mutate();
+    await h.advance(60000);
+    await h.api.analyze('manual');
+    assert.equal(h.captures.length,0);
+    assert.equal(h.requests.length,0);
+    assert.equal(h.api.state().pageState,'skipped');
+    assert.equal(h.api.state().lastDecision,null);
+  });
+}
+
+for (const [url,mime] of [
+  ['http://192.168.1.10:8081/fake_alipay.html','text/html'],
+  ['http://127.0.0.1:8001/fake_alipay.html','text/html'],
+  ['http://localhost:8001/fake_alipay.html','text/html'],
+  ['http://[::1]:8001/shadow','text/html'],
+  ['http://127.0.0.1:8000/unrelated-page','text/html'],
+  ['http://127.0.0.1:8000/shadow-imitator','text/html'],
+  ['https://public.example/shadow','text/html'],
+  ['http://127.0.0.1.attacker.example:8000/shadow','text/html'],
+  ['http://192.168.1.10:8081/alipay_logo.png','text/html'],
+  ['https://ordinary.example/no-extension','application/xhtml+xml'],
+  ['https://ordinary.example/no-extension',''],
+]) {
+  test(`eligible ${url} (${mime || 'unknown MIME'}) loads and rechecks real DOM changes`, async () => {
+    const h=harness({url,mime});
+    h.windowEvents.load(); await h.advance(1800);
+    assert.equal(h.requests.length,1);
+    assert.equal(JSON.parse(h.requests[0].body).url,url);
+    h.text.nodeValue='Changed login page'; h.mutate();
+    await h.advance(750);
+    assert.equal(h.requests.length,2);
+    assert.equal(JSON.parse(h.requests[1].body).trigger,'page_change');
+    assert.equal(h.captures.length,2);
+  });
+}
+
+test('navigation into management cancels pending analysis; late block cannot apply; leaving resumes', async () => {
+  const pending=deferred();
+  const h=harness({url:'http://127.0.0.1:8000/unrelated-page',fetch:()=>pending.promise});
+  const running=h.api.analyze('manual'); await flush();
+  assert.equal(h.requests.length,1);
+  h.context.location.href='http://127.0.0.1:8000/shadow';
+  h.windowEvents.popstate(); await flush();
+  assert.equal(h.requests[0].signal.aborted,true);
+  pending.resolve(response(verdict('block'))); await running; await flush();
+  assert.equal(h.api.state().pageState,'skipped');
+  assert.equal(h.api.state().lastDecision,null);
+  assert.equal(h.api.state().warned,false);
+  await h.advance(60000); assert.equal(h.requests.length,1);
+  h.context.location.href='http://127.0.0.1:8000/unrelated-page';
+  h.windowEvents.popstate(); await h.advance(750);
+  assert.equal(h.requests.length,2);
+  assert.equal(h.api.state().lastDecision.decision,'block');
+});
+
+test('confirmed non-HTML context cancels capture and does not turn into allow', async () => {
+  let captured;
+  const h=harness({capture:callback=>{captured=callback;}});
+  const running=h.api.analyze('manual'); await flush();
+  h.document.contentType='image/png'; h.mutate();
+  captured({dataUrl:'data:image/png;base64,LATE'}); await running; await flush();
+  await h.advance(60000);
+  assert.equal(h.requests.length,0);
+  assert.equal(h.api.state().pageState,'skipped');
+  assert.equal(h.api.state().lastDecision,null);
 });

@@ -24,7 +24,9 @@ import os
 import sys
 import time
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Thread
+from contextlib import asynccontextmanager
+import logging
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -38,7 +40,7 @@ from pydantic import BaseModel, Field, ConfigDict
 # Sibling modules must also work when started as ``python server/app.py``.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from reliability import LRUCache, MODEL_VERSION, POLICY_VERSION  # noqa: E402
-from visual_brand import BrandIndex, choose_regions, inspect_regions, rgb_image
+from visual_brand import BrandIndex, choose_regions, inspect_regions, rgb_image, mark_auxiliary_toolbars
 
 # The saved UCI model uses unverified label/feature encodings. Do not import,
 # run DNS queries for, or fuse this classifier until it has been revalidated.
@@ -67,6 +69,11 @@ MODEL_RETRY_DELAY_S = 30.0
 _MODEL_INIT_LOCK = Lock()
 _INFERENCE_LOCK = Lock()
 _MODELS_LAST_FAILURE = float("-inf")
+_MODEL_STATE_LOCK = Lock()
+_MODEL_STATE = "uninitialized"
+_MODEL_STARTED = None
+_MODEL_FINISHED = None
+_MODEL_WARMUP_THREAD = None
 _CN_INIT_LOCK = Lock()
 _CN_LAST_FAILURE = float("-inf")
 
@@ -161,77 +168,125 @@ def hostname_matches(host: str, official: list[str]) -> bool:
 def load_models():
     """Initialize once at a time, and retry failures after a bounded cooldown."""
     global MODELS_READY, MODELS_LOAD_ERROR, _MODELS_LAST_FAILURE, _MODELS
+    global _MODEL_STATE, _MODEL_STARTED, _MODEL_FINISHED
     with _MODEL_INIT_LOCK:
         if MODELS_READY:
             return
         if MODELS_LOAD_ERROR and time.monotonic() - _MODELS_LAST_FAILURE < MODEL_RETRY_DELAY_S:
             raise RuntimeError(f"模型初始化暂不可用，稍后重试: {MODELS_LOAD_ERROR}")
+        with _MODEL_STATE_LOCK:
+            _MODEL_STATE = "loading"
+            _MODEL_STARTED = time.monotonic()
+            _MODEL_FINISHED = None
+            MODELS_LOAD_ERROR = None
         try:
             models = _initialize_models()
         except Exception as exc:
-            MODELS_LOAD_ERROR = f"{type(exc).__name__}: {exc}"
-            _MODELS_LAST_FAILURE = time.monotonic()
+            with _MODEL_STATE_LOCK:
+                MODELS_LOAD_ERROR = f"{type(exc).__name__}: {exc}"
+                _MODELS_LAST_FAILURE = time.monotonic()
+                _MODEL_FINISHED = _MODELS_LAST_FAILURE
+                _MODEL_STATE = "failed"
             raise RuntimeError(MODELS_LOAD_ERROR) from exc
-        _MODELS = models
-        MODELS_LOAD_ERROR = None
-        MODELS_READY = True
+        with _MODEL_STATE_LOCK:
+            _MODELS = models
+            MODELS_LOAD_ERROR = None
+            _MODEL_FINISHED = time.monotonic()
+            MODELS_READY = True
+            _MODEL_STATE = "ready"
+
+
+def model_initialization_status():
+    """A loading process is reachable but is not yet a ready visual model."""
+    with _MODEL_STATE_LOCK:
+        now = time.monotonic()
+        state = "ready" if MODELS_READY else _MODEL_STATE
+        return {"state": state, "error": MODELS_LOAD_ERROR,
+                "elapsed_s": round((_MODEL_FINISHED or now) - _MODEL_STARTED, 3)
+                if _MODEL_STARTED is not None else None,
+                "retry_after_s": round(max(0, MODEL_RETRY_DELAY_S - (now - _MODELS_LAST_FAILURE)), 3)
+                if state == "failed" else 0,
+                "stages_s": dict(_MODELS.get("load_stages_s", {})) if MODELS_READY else {}}
+
+
+def start_model_warmup():
+    """At most one warmup worker; failures retain the existing retry cooldown."""
+    global _MODEL_WARMUP_THREAD
+    with _MODEL_STATE_LOCK:
+        if MODELS_READY or (_MODEL_WARMUP_THREAD and _MODEL_WARMUP_THREAD.is_alive()):
+            return
+        if MODELS_LOAD_ERROR and time.monotonic() - _MODELS_LAST_FAILURE < MODEL_RETRY_DELAY_S:
+            return
+        def warm():
+            try:
+                load_models()
+            except Exception:
+                logging.getLogger(__name__).exception("Visual model warmup failed")
+        _MODEL_WARMUP_THREAD = Thread(target=warm, name="phishlens-model-warmup", daemon=True)
+        _MODEL_WARMUP_THREAD.start()
 
 
 def _initialize_models():
     """Build model state without publishing partially initialized globals.
 
-    Upstream AWL config paths are cwd-relative. The new brand cache has explicit
+    Resolve upstream paths absolutely; background loading must not change cwd. The new brand cache has explicit
     ordered records and content/model hashes; it never relies on directory order.
     """
     t0 = time.time()
-    old_cwd = os.getcwd()
-    try:
-        # detectron2 config paths in configs.yaml are cwd-relative
-        os.chdir(PHISHINTENTION_ROOT)
-        with open(PHISHINTENTION_ROOT / "configs" / "configs.yaml", "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f)
+    with open(PHISHINTENTION_ROOT / "configs" / "configs.yaml", "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
 
-        # patch numpy legacy aliases if needed (already patched in logo_matching.py, belt & suspenders)
-        import numpy as np
-        for legacy in ("int", "float", "bool", "object"):
-            if not hasattr(np, legacy):
-                setattr(np, legacy, getattr(np, legacy + "_", None) or getattr(np, legacy))
+    stages = {}
+    stage_start = time.monotonic()
+    # patch numpy legacy aliases if needed (already patched in logo_matching.py, belt & suspenders)
+    import numpy as np
+    for legacy in ("int", "float", "bool", "object"):
+        if not hasattr(np, legacy):
+            setattr(np, legacy, getattr(np, legacy + "_", None) or getattr(np, legacy))
 
-        # AWL: Faster R-CNN layout/element detector (logo class only)
-        from phishintention.modules.awl_detector import config_rcnn, pred_rcnn, find_element_type
-        from phishintention.modules.logo_matching import (
-            siamese_model_config,
-            ocr_model_config,
-            get_ocr_aided_siamese_embedding,
-        )
-        import torch
-        torch.set_num_threads(2)
+    # AWL: Faster R-CNN layout/element detector (logo class only)
+    from phishintention.modules.awl_detector import config_rcnn, pred_rcnn, find_element_type
+    from phishintention.modules.logo_matching import (
+        siamese_model_config,
+        ocr_model_config,
+        get_ocr_aided_siamese_embedding,
+    )
+    import torch
+    torch.set_num_threads(2)
 
-        awl = config_rcnn(
-            cfg_path=cfg["AWL_MODEL"]["CFG_PATH"],
-            weights_path=cfg["AWL_MODEL"]["WEIGHTS_PATH"],
-            conf_threshold=cfg["AWL_MODEL"]["DETECT_THRE"],
-        )
-        siamese = siamese_model_config(
-            num_classes=cfg["SIAMESE_MODEL"]["NUM_CLASSES"],
-            weights_path=cfg["SIAMESE_MODEL"]["WEIGHTS_PATH"],
-        )
-        ocr = ocr_model_config(weights_path=cfg["SIAMESE_MODEL"]["OCR_WEIGHTS_PATH"])
+    stages["imports"] = time.monotonic() - stage_start
+    stage_start = time.monotonic()
+    awl = config_rcnn(
+        cfg_path=str(PHISHINTENTION_ROOT / cfg["AWL_MODEL"]["CFG_PATH"]),
+        weights_path=str(PHISHINTENTION_ROOT / cfg["AWL_MODEL"]["WEIGHTS_PATH"]),
+        conf_threshold=cfg["AWL_MODEL"]["DETECT_THRE"],
+    )
+    stages["awl"] = time.monotonic() - stage_start
+    stage_start = time.monotonic()
+    siamese = siamese_model_config(
+        num_classes=cfg["SIAMESE_MODEL"]["NUM_CLASSES"],
+        weights_path=str(PHISHINTENTION_ROOT / cfg["SIAMESE_MODEL"]["WEIGHTS_PATH"]),
+    )
+    stages["siamese"] = time.monotonic() - stage_start
+    stage_start = time.monotonic()
+    ocr = ocr_model_config(weights_path=str(PHISHINTENTION_ROOT / cfg["SIAMESE_MODEL"]["OCR_WEIGHTS_PATH"]))
 
-        brand_index = BrandIndex.load(REPO_ROOT)
+    stages["ocr"] = time.monotonic() - stage_start
+    stage_start = time.monotonic()
+    brand_index = BrandIndex.load(REPO_ROOT)
+    stages["verified_gallery"] = time.monotonic() - stage_start
 
-        return {
-            "awl": awl,
-            "siamese": siamese,
-            "ocr": ocr,
-            "brand_index": brand_index,
-            "embed_logo": lambda image: get_ocr_aided_siamese_embedding(rgb_image(image), siamese, ocr),
-            "pred_rcnn": pred_rcnn,
-            "find_element_type": find_element_type,
-            "load_time_s": round(time.time() - t0, 2),
-        }
-    finally:
-        os.chdir(old_cwd)
+    return {
+        "awl": awl,
+        "siamese": siamese,
+        "ocr": ocr,
+        "brand_index": brand_index,
+        "embed_logo": lambda image: get_ocr_aided_siamese_embedding(rgb_image(image), siamese, ocr),
+        "pred_rcnn": pred_rcnn,
+        "find_element_type": find_element_type,
+        "load_stages_s": {k: round(v, 3) for k, v in stages.items()},
+        "load_time_s": round(time.time() - t0, 2),
+    }
 
 
 _MODELS: dict = {}
@@ -309,7 +364,14 @@ def url_suspicion_score(url: str) -> dict:
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
-app = FastAPI(title="PhishLens Edge Guard local service", version="0.2.0")
+@asynccontextmanager
+async def lifespan(app):
+    if os.environ.get("PHISHLENS_PREWARM", "1") != "0":
+        start_model_warmup()
+    yield
+
+
+app = FastAPI(title="PhishLens Edge Guard local service", version="0.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -335,11 +397,18 @@ class ViewportSignal(BaseModel):
     height: float = Field(gt=0, le=32768)
 
 
+class PasswordFormSignal(BaseModel):
+    action_domain: str = Field(default='', max_length=255)
+    action_scheme: str = Field(default='', max_length=16)
+    method: str = Field(default='', max_length=16)
+
+
 class DomSignals(BaseModel):
     page_domain: str = ""
     # None means unknown, rather than claiming that no password field exists.
     has_password_input: bool | None = None
     has_login_form: bool | None = None
+    password_forms: list[PasswordFormSignal] | None = Field(default=None, max_length=32)
     form_action_domains: list[str] = Field(default_factory=list)
     title: str = ""
     favicon: str = ""
@@ -371,16 +440,24 @@ def _disabled_uci_result():
 
 @app.get("/health")
 def health():
+    initialization = model_initialization_status()
     return {
         "status": "ok",
-        "models_ready": MODELS_READY,
-        "models_load_error": MODELS_LOAD_ERROR,
+        "models_ready": initialization["state"] == "ready",
+        "models_load_error": initialization["error"],
+        "model_initialization": initialization,
         "cache_size": len(RESULT_CACHE),
         "policy_version": POLICY_VERSION,
         "uci_prefilter": _disabled_uci_result(),
         "model_version": MODEL_VERSION,
-        "reference_version": _MODELS['brand_index'].version if MODELS_READY else None,
+        "reference_version": _MODELS['brand_index'].version if initialization["state"] == "ready" else None,
     }
+
+
+@app.post("/warmup")
+def warmup():
+    start_model_warmup()
+    return health()
 
 
 def _url_host(url: str) -> str:
@@ -404,6 +481,54 @@ def _page_host(value: str) -> str:
         return value.lower().rstrip(".").encode("idna").decode("ascii")
     except UnicodeError:
         return ""
+
+
+def general_risk_analysis(url, ds):
+    """Observable local signals, not a site reputation score or safety certificate."""
+    import ipaddress
+    parsed = urlparse(url)
+    host = _url_host(url)
+    signals = []
+    def add(code, level, text):
+        if not any(x['code'] == code for x in signals):
+            signals.append({'code': code, 'level': level, 'message': text})
+    password = ds.has_password_input is True
+    if parsed.scheme.lower() == 'http':
+        add('HTTP_PASSWORD_PAGE' if password else 'UNENCRYPTED_PAGE',
+            'high' if password else 'caution',
+            '页面通过 HTTP 索要密码，存在凭据泄露风险，请勿输入真实密码' if password
+            else '当前页面使用 HTTP，连接未加密，避免输入敏感信息')
+    if parsed.username is not None or parsed.password is not None:
+        add('URL_USERINFO', 'caution', '网址含有 @ 前的用户信息，容易误认真实域名，请核对地址栏')
+    try:
+        ipaddress.ip_address(host)
+        add('IP_ADDRESS_URL', 'caution', '网址直接使用 IP 地址，需要另行核对网站归属（本机演示也会触发）')
+    except ValueError:
+        pass
+    if any(label.startswith('xn--') for label in host.split('.')):
+        add('IDN_REVIEW', 'caution', '网址使用国际化域名编码，请核对字形；该特征本身不能证明恶意')
+    if len(host) > 60 or host.count('-') >= 4:
+        add('COMPLEX_HOST', 'caution', '域名较长或包含较多连字符，请核对实际域名')
+    if password:
+        for form in ds.password_forms or []:
+            if form.method.lower() == 'get':
+                add('PASSWORD_FORM_GET', 'high', '密码表单声明使用 GET，若正常提交可能将密码写入网址、历史或日志')
+            if form.action_scheme.lower() == 'http':
+                add('PASSWORD_ACTION_HTTP', 'high', '密码表单提交目标使用 HTTP，若发送将缺少传输加密')
+            if form.action_domain and _page_host(form.action_domain) != host:
+                add('PASSWORD_ACTION_OTHER_HOST', 'caution', '密码表单指向其他主机，请核对登录提供方；统一登录也可能出现此情况')
+        if ds.password_forms is None:
+            add('FORM_DETAILS_MISSING', 'caution', '检测到密码框，但缺少表单提交方式信息，请更新扩展后复查')
+    level = 'high' if any(x['level']=='high' for x in signals) else 'caution' if signals else 'not_observed'
+    summary = '；'.join(x['message'] for x in signals[:3]) if signals else '当前页面未发现本地规则覆盖的明显风险信号'
+    if not password:
+        summary += '；当前页面未检测到密码输入框'
+    else:
+        summary += '；存在密码输入框，提交前请核对登录方身份'
+    summary += '。此检查不包含恶意代码、下载文件或网站信誉认证，不能保证网站安全。'
+    return {'status':'completed', 'level':level, 'signals':signals, 'summary':summary,
+            'checks':['page_transport','url_structure','password_inputs','password_form_metadata'],
+            'limitations':['不验证网站经营主体或实时信誉','不扫描恶意脚本和下载文件','仅检查当前页可观察的表单属性，不验证脚本实际发送行为']}
 
 
 def _decode_screenshot(value: str) -> bytes:
@@ -442,7 +567,9 @@ def _match_cn_logo(img_bytes, logo_boxes):
 def _analyze_visual(img_bytes: bytes, url: str, dom=None) -> dict:
     """Recognize pixels independently of URL; page metadata only locates crops."""
     from PIL import Image
+    waiting = time.monotonic()
     load_models()
+    model_wait = time.monotonic() - waiting
     dom = dom or {}
     m = _MODELS
     started = time.monotonic()
@@ -453,6 +580,8 @@ def _analyze_visual(img_bytes: bytes, url: str, dom=None) -> dict:
         detection_time = time.monotonic() - started
         with Image.open(io.BytesIO(img_bytes)) as image:
             regions = choose_regions(image.size, logos, blocks, dom.get('logo_regions', []), dom.get('viewport'))
+            controls = [list(map(float, box)) for box, kind in zip(boxes, classes) if int(kind) == 2]
+            regions = mark_auxiliary_toolbars(image, regions, controls)
             evidence = inspect_regions(image, regions, m['brand_index'], m['embed_logo'])
             evidence['image_size'] = list(image.size)
             evidence['detections'] = [{'box': [round(float(v), 2) for v in box],
@@ -476,7 +605,8 @@ def _analyze_visual(img_bytes: bytes, url: str, dom=None) -> dict:
                              'source': 'siamese_reference'} if candidate else None),
         'visual_evidence': evidence,
         'reasons': [messages[evidence['status']]],
-        'level_times': {'l1_logo_det': round(detection_time, 3),
+        'level_times': {'model_wait': round(model_wait, 3),
+                        'l1_logo_det': round(detection_time, 3),
                         'l2_logo_match': round(time.monotonic()-started-detection_time, 3)},
         'l1_logo_boxes': len(logos),
         'l1_block_fallback': any(r['source'] == 'page_block' for r in regions),
@@ -498,12 +628,19 @@ def _credential_brand_link(ds, evidence):
     if not size[0] or not size[1]:
         return False
     sx, sy = ds.viewport.width / size[0], ds.viewport.height / size[1]
-    x1, y1, x2, y2 = hit['box']
-    cx, cy = (x1+x2)*sx/2, (y1+y2)*sy/2
     aliases = hit.get('aliases', [hit['name']])
+    # A sharper header logo must not hide a confirmed instance of the SAME
+    # brand inside the login card. Conflicting brands still have no global hit.
+    matches = [hit, *evidence.get('matches', [])]
+    centers = []
+    for match in matches:
+        if match['name'] != hit['name'] or match.get('source') not in (None, 'awl_logo', 'dom_image'):
+            continue
+        x1, y1, x2, y2 = match['box']
+        centers.append(((x1+x2)*sx/2, (y1+y2)*sy/2))
     for context in ds.credential_contexts:
         a, b, c, d = context.box
-        if context.interactive or not (a <= cx <= c and b <= cy <= d):
+        if context.interactive or not any(a <= cx <= c and b <= cy <= d for cx, cy in centers):
             continue
         if c <= a or d <= b or c-a > ds.viewport.width*.95:
             continue
@@ -534,6 +671,7 @@ def _record_event(req, out):
             "brand_candidate": out.get("brand_candidate"),
             "visual_evidence": out.get("visual_evidence"),
             "credential_brand_linked": out.get("credential_brand_linked", False),
+            "general_risk": out.get("general_risk"),
         }
         log_path = Path(os.environ.get('PHISHLENS_EVENT_LOG', str(Path(__file__).resolve().parent / 'event.log')))
         with open(log_path, "a", encoding="utf-8") as stream:
@@ -542,8 +680,7 @@ def _record_event(req, out):
         pass
 
 
-@app.post("/analyze")
-def analyze(req: AnalyzeRequest):
+def _analyze_original(req: AnalyzeRequest):
     t_total = time.time()
     out = {
         "decision": "uncertain", "analysis_status": "completed",
@@ -553,6 +690,7 @@ def analyze(req: AnalyzeRequest):
         "models_load_time_s": None, "uci_prefilter": _disabled_uci_result(),
         "l1_logo_boxes": 0, "l1_block_fallback": False, "l2_matched": False,
         "brand_unconfirmed": False, "brand_candidate": None,
+        "general_risk": {"status":"not_run", "level":"unknown"},
     }
     cache_key = None
 
@@ -600,6 +738,9 @@ def analyze(req: AnalyzeRequest):
         add_reason("IMAGE_DECODE_FAILED", "截图为空、损坏或不是有效图像，检测未完成")
         return finish("failed")
 
+    if context_complete:
+        out['general_risk'] = general_risk_analysis(req.url, ds)
+
     # Only complete browser context is eligible for cache or domain shortcuts.
     if context_complete:
         cache_key = build_cache_key(req, img_bytes)
@@ -612,7 +753,7 @@ def analyze(req: AnalyzeRequest):
         t0 = time.time()
         whitelisted = hostname_matches(host, EXTRA_WHITELIST)
         out["level_times"]["l0_whitelist"] = round(time.time() - t0, 3)
-        if whitelisted:
+        if whitelisted and out['general_risk']['level'] == 'not_observed':
             out["decision"] = "allow"
             add_reason("WHITELIST_MATCH", "请求网址的域名在明确白名单内")
             return finish()
@@ -681,10 +822,70 @@ def analyze(req: AnalyzeRequest):
             add_reason("INSUFFICIENT_CREDENTIAL_EVIDENCE", "未确认密码凭据索取，需人工复核")
     elif (credential_observed or external_action) and sus["score"] >= 2:
         add_reason("REVIEW_REQUIRED", "存在页面风险信号且网址可疑，需人工复核")
+    elif out['general_risk']['level'] in ('high', 'caution'):
+        add_reason('GENERAL_RISK_SIGNALS', '通用检查发现需要核实的信号，详见具体风险原因')
     else:
         out["decision"] = "allow"
         add_reason("NO_RELIABLE_PHISHING_SIGNAL", "本次完整检测未发现可靠钓鱼信号")
     return finish()
+
+
+@app.post("/analyze")
+def analyze(req: AnalyzeRequest):
+    # Cached original results must never acquire a stale URL-model verdict.
+    from copy import deepcopy
+    from concurrent.futures import ThreadPoolExecutor
+    from shadow_fusion import fetch_url_analysis, combine
+    enabled = os.environ.get("PHISHLENS_SHADOW_URL", "1") != "0"
+    if not enabled or req.analysis_mode != "browser" or not _url_host(req.url):
+        return _analyze_original(req)
+    started = time.time()
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(fetch_url_analysis, req.url)
+        result = deepcopy(_analyze_original(req))
+        url_result = future.result()
+    ds = req.dom_signals
+    valid = bool(ds and ds.page_domain and ds.has_password_input is not None
+                 and _page_host(ds.page_domain) == _url_host(req.url))
+    # DOM risks remain available even when screenshot decoding/inference failed.
+    evidence = deepcopy(result)
+    if valid:
+        evidence["general_risk"] = general_risk_analysis(req.url, ds)
+    result["shadow_fusion"] = combine(evidence, url_result, valid, req.url)
+    result["shadow_fusion"]["elapsed_s"] = round(time.time() - started, 3)
+    try:
+        path = Path(os.environ.get("PHISHLENS_SHADOW_LOG",
+                                   str(REPO_ROOT / "server" / "shadow-events.jsonl")))
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({"ts": time.time(), "url": req.url, "trigger": req.trigger,
+                                    "shadow_fusion": result["shadow_fusion"]},
+                                   ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+    return result
+
+
+@app.get("/shadow/events")
+def shadow_events():
+    """Bounded local audit view; screenshots and input values are not logged."""
+    path = Path(os.environ.get("PHISHLENS_SHADOW_LOG",
+                               str(REPO_ROOT / "server" / "shadow-events.jsonl")))
+    if not path.is_file():
+        return {"status": "available", "events": []}
+    with path.open("rb") as stream:
+        size = stream.seek(0, 2)
+        start = max(0, size - 2_000_000)
+        stream.seek(start)
+        if start:
+            stream.readline()
+        lines = stream.read().splitlines()[-20:]
+    events = []
+    for line in reversed(lines):
+        try:
+            events.append(json.loads(line))
+        except (ValueError, UnicodeError):
+            continue
+    return {"status": "available", "events": events}
 
 
 if __name__ == "__main__":

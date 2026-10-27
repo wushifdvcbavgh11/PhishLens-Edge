@@ -46,8 +46,10 @@ def local_demo_html(html: str) -> str:
     safeguards = """
 <meta http-equiv="Content-Security-Policy" content="form-action 'none'; base-uri 'none'; object-src 'none'">
 <style>
-  body { padding-top:110px !important; }
-  .local-demo-banner { position:fixed; top:0; left:0; right:0; z-index:2147483646;
+  /* Keep the notice in normal flow so scrolling never hides a brand logo. */
+  body { padding:0 0 24px !important; flex-direction:column; justify-content:flex-start; gap:24px; }
+  .card { flex-shrink:0; max-width:calc(100% - 24px); }
+  .local-demo-banner { position:static; width:100%; flex-shrink:0;
     padding:12px 18px; background:#fff3cd; color:#4f3200; border-bottom:3px solid #bf7000;
     text-align:center; font:700 16px/1.6 'Microsoft YaHei',sans-serif; }
   .local-demo-banner small { display:block; font-size:13px; font-weight:400; }

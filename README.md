@@ -2,7 +2,7 @@
 
 在本机分析网页截图、品牌标志、域名与登录表单的反钓鱼研究原型。浏览器扩展连接本地 Python 服务，给出“未发现明确风险 / 未确认 / 疑似仿冒”及检测依据。
 
-**截图仅发送到本机服务，不上传云端。浏览器扩展版本：0.2.4。**
+**截图仅发送到本机服务，不上传云端。浏览器扩展版本：0.2.8。**
 
 ## 界面与功能
 
@@ -85,7 +85,7 @@ git clone https://github.com/lindsey98/PhishIntention.git third_party/PhishInten
 .\tools\run_reliability_checks.ps1
 ```
 
-当前离线回归包括 **58 项 Python 检查、76 项 JavaScript 检查**，涵盖请求超时、重试、页面身份、一次放行、桌面结果、缓存、示例页面、小圆点展开与收起。测试使用模拟视觉结果，不代表真实模型准确率。
+离线回归涵盖请求超时、重试、页面身份、一次放行、桌面结果、缓存、示例页面、小圆点展开与收起，以及多区域品牌识别与表单关联。测试使用模拟视觉结果，不代表真实模型准确率。
 
 `testset/fake/` 的 HTML 已内嵌素材并禁止提交。不要输入真实账号、密码或验证码。重新生成三种基本品牌演示页：
 
@@ -105,7 +105,15 @@ git clone https://github.com/lindsey98/PhishIntention.git third_party/PhishInten
 
 - [扩展与服务](docs/T5T6-extension-and-service.md)
 - [品牌库](docs/T7-brand-library.md)
+- [第一阶段稳定版本与验收边界](docs/releases/local-20261026.md)
+- [第二阶段研究归档](docs/research/phase2/README.md)
 - [内存截图处理](docs/T17-in-memory-processing.md)
 - [便携包构建工具](tools/build_portable.py)：从已配置的 Windows Python 3.11 环境打包到新目录；运行环境与模型不从 Git 下载。
 - [竞赛简报](PhishLens_Edge_Competition_Brief.pdf)：历史材料，当前行为以本 README 与代码为准。
 - 项目代码采用 [Apache-2.0](LICENSE)。第三方组件及品牌商标说明见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)。
+
+## 源码发布范围（2026-10-27）
+
+本仓库已补充第一阶段修复后的服务、扩展及对应测试，并保留第二阶段研究归档。生产源码来自本地稳定提交 `8a57413c48bfc3fdd7ebb52cc1226d197223044b`，第二阶段原型未接入生产。
+
+此次只同步经过审查的源码与测试依赖，不上传模型权重、完整图库、特征、数据库、原始数据或日志。首次检出仍需另行配置匹配的本地资源；GitHub 代码不等于完整可运行分发包。PhishGuard 为独立项目，本次没有上传它的代码或数据。历史测试结果见稳定版本说明，本次发布仅做静态审查，未重新运行模型、浏览器验收或历史测试。

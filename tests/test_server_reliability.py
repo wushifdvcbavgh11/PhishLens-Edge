@@ -239,7 +239,8 @@ class AnalyzeTests(unittest.TestCase):
     def test_official_brand_domain_does_not_block(self):
         self.visual.return_value = visual_result("Example Bank", "bank.example")
         self.payload.update(url="https://bank.example/", dom_signals={
-            "page_domain": "bank.example", "has_password_input": True})
+            "page_domain": "bank.example", "has_password_input": True,
+            "password_forms": [{"action_domain":"bank.example", "action_scheme":"https", "method":"post"}]})
         self.assertEqual(self.analyze()["decision"], "allow")
 
     def test_changed_pixels_reanalyze_and_cache_results_are_copies(self):
